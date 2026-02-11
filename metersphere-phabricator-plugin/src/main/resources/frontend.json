@@ -1,0 +1,218 @@
+{
+  "serviceIntegration": {
+    "formItems": [
+      {
+        "name": "url",
+        "type": "text",
+        "label": "Phabricator URL",
+        "placeholder": "https://phabricator.example.com",
+        "required": true,
+        "tooltip": "Base URL of your Phabricator/Phorge instance"
+      },
+      {
+        "name": "apiToken",
+        "type": "password",
+        "label": "API Token",
+        "required": true,
+        "tooltip": "Generate from Phabricator Settings > API Tokens"
+      },
+      {
+        "name": "verifySSL",
+        "type": "checkbox",
+        "label": "Verify SSL Certificate",
+        "defaultValue": true,
+        "tooltip": "Disable only for development with self-signed certificates"
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "label": "Request Timeout (ms)",
+        "defaultValue": 30000,
+        "min": 5000,
+        "max": 120000,
+        "tooltip": "HTTP request timeout in milliseconds"
+      }
+    ]
+  },
+  "projectIntegration": {
+    "formItems": [
+      {
+        "name": "primaryStrategy",
+        "type": "radio",
+        "label": "Primary Project Mapping Strategy",
+        "required": true,
+        "options": [
+          {
+            "value": "ROOT_ONLY",
+            "text": "Always map to root project",
+            "tooltip": "Map all issues to the root/parent project regardless of current subproject"
+          },
+          {
+            "value": "CURRENT_CONTEXT",
+            "text": "Use current project context",
+            "tooltip": "Map to the current project where the issue resides (may be subproject or milestone)"
+          },
+          {
+            "value": "HIERARCHICAL",
+            "text": "Maintain full hierarchy",
+            "tooltip": "Preserve full project path: RootProject/Subproject/Milestone"
+          },
+          {
+            "value": "SMART_RESOLUTION",
+            "text": "Automatic smart resolution",
+            "tooltip": "Intelligently choose best project based on context and configuration"
+          }
+        ],
+        "defaultValue": "SMART_RESOLUTION"
+      },
+      {
+        "name": "defaultProjectId",
+        "type": "select",
+        "label": "Default Project",
+        "required": true,
+        "optionMethod": "getMeterSphereProjects",
+        "tooltip": "Fallback project when primary strategy cannot determine mapping"
+      },
+      {
+        "name": "tagFormat",
+        "type": "text",
+        "label": "Tag Format",
+        "defaultValue": "[{type}] {name}",
+        "tooltip": "Format for project tags. Available variables: {type}, {name}, {phid}"
+      },
+      {
+        "name": "closureStatuses",
+        "type": "multiSelect",
+        "label": "Closure Statuses",
+        "defaultValue": ["resolved", "wontfix", "invalid", "spite", "duplicate"],
+        "optionsMethod": "getAvailableStatuses",
+        "tooltip": "Phabricator statuses that indicate the issue is closed"
+      },
+      {
+        "name": "syncClosedIssues",
+        "type": "checkbox",
+        "label": "Sync Closed Issues",
+        "defaultValue": true,
+        "tooltip": "Whether to synchronize closed issues from Phabricator"
+      },
+      {
+        "name": "statusMapping",
+        "type": "keyValue",
+        "label": "Status Mapping",
+        "tooltip": "Map Phabricator statuses to MeterSphere statuses"
+      },
+      {
+        "name": "allowedSubtypes",
+        "type": "multiSelect",
+        "label": "Allowed Subtypes",
+        "defaultValue": ["task", "story", "epic"],
+        "optionsMethod": "getAvailableSubtypes",
+        "tooltip": "Which maniphest subtypes to sync with MeterSphere"
+      },
+      {
+        "name": "defaultSubtype",
+        "type": "select",
+        "label": "Default Subtype",
+        "defaultValue": "task",
+        "optionsMethod": "getAvailableSubtypes",
+        "tooltip": "Default subtype for new issues"
+      },
+      {
+        "name": "subtypeMapping",
+        "type": "keyValue",
+        "label": "Subtype Mapping",
+        "tooltip": "Map Phabricator subtypes to MeterSphere issue types"
+      }
+    ]
+  },
+  "optionMethods": {
+    "getPhabricatorProjects": {
+      "description": "Get available Phabricator projects",
+      "method": "getProjectOptions",
+      "params": []
+    },
+    "getMeterSphereProjects": {
+      "description": "Get available MeterSphere projects",
+      "method": "getMeterSphereProjectOptions",
+      "params": []
+    },
+    "getAvailableStatuses": {
+      "description": "Get available Maniphest statuses",
+      "method": "getAvailableStatuses",
+      "params": []
+    },
+    "getAvailableSubtypes": {
+      "description": "Get available Maniphest subtypes",
+      "method": "getAvailableSubtypes",
+      "params": []
+    },
+    "getPhabricatorUsers": {
+      "description": "Get available Phabricator users",
+      "method": "getUserOptions",
+      "params": []
+    }
+  },
+  "validation": {
+    "rules": [
+      {
+        "field": "url",
+        "type": "url",
+        "message": "Must be a valid URL"
+      },
+      {
+        "field": "apiToken",
+        "type": "notEmpty",
+        "message": "API Token is required"
+      },
+      {
+        "field": "primaryStrategy",
+        "type": "notEmpty",
+        "message": "Primary strategy is required"
+      },
+      {
+        "field": "defaultProjectId",
+        "type": "notEmpty",
+        "message": "Default project is required"
+      },
+      {
+        "field": "timeout",
+        "type": "range",
+        "min": 5000,
+        "max": 120000,
+        "message": "Timeout must be between 5000 and 120000 ms"
+      }
+    ],
+    "dependencies": [
+      {
+        "field": "defaultSubtype",
+        "dependsOn": "allowedSubtypes",
+        "rule": "in",
+        "message": "Default subtype must be in allowed subtypes"
+      }
+    ]
+  },
+  "ui": {
+    "sections": [
+      {
+        "name": "connection",
+        "label": "Connection Settings",
+        "fields": ["url", "apiToken", "verifySSL", "timeout"]
+      },
+      {
+        "name": "projectMapping",
+        "label": "Project Mapping",
+        "fields": ["primaryStrategy", "defaultProjectId", "tagFormat"]
+      },
+      {
+        "name": "status",
+        "label": "Status Configuration",
+        "fields": ["closureStatuses", "syncClosedIssues", "statusMapping"]
+      },
+      {
+        "name": "subtypes",
+        "label": "Subtype Configuration",
+        "fields": ["allowedSubtypes", "defaultSubtype", "subtypeMapping"]
+      }
+    ]
+  }
+}

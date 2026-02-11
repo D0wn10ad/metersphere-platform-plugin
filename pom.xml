@@ -14,13 +14,14 @@
         <module>metersphere-platform-plugin-sdk</module>
         <module>metersphere-jira-plugin</module>
         <module>metersphere-zentao-plugin</module>
+        <module>metersphere-phabricator-plugin</module>
     </modules>
 
     <properties>
         <!-- 这里版本没什么作用，该pom文件主要方便整体打包 -->
         <revision>main</revision>
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
     </properties>
 
 </project>
