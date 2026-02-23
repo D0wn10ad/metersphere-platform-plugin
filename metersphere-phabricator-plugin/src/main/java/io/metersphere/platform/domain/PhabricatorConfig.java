@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class PhabricatorConfig {
     private String url;
     private String apiToken;
+    private String user;
 
     public String getUrl() {
         return url;
@@ -21,5 +22,13 @@ public class PhabricatorConfig {
 
     public void setApiToken(String apiToken) {
         this.apiToken = apiToken;
+    }
+
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
     }
 }

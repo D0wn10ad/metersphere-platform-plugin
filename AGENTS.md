@@ -387,4 +387,57 @@ Before deploying a new plugin version:
 | metersphere-platform-plugin-sdk | 1.6.0 |
 | metersphere-plugin-sdk | 1.2.0 |
 | Java (plugin modules) | 17 |
+
+## Known Issues
+
+### validateUserConfig() - API Token Validation Bug
+
+**Status:** Known Bug - Not Yet Fixed
+
+**Description:** When a user configures a personal API token override in "accountConfig" (用户信息), the validation fails because:
+
+1. The `accountConfig` in `frontend.json` only contains `apiToken` field (no `url`)
+2. The URL should come from the integration config (serviceIntegration)
+3. Current code in `validateUserConfig()` doesn't merge configs properly
+
+**Current Behavior:**
+- User provides personal apiToken in accountConfig → validation fails with "Phabricator configuration is not set"
+
+**Expected Behavior:**
+- User provides personal apiToken → validation uses URL from integration config + apiToken from user config
+- User doesn't provide apiToken (blank) → silently skip validation (use integration token)
+
+**Location:**
+- `metersphere-phabricator-plugin/src/main/java/io/metersphere/platform/impl/PhabricatorPlatform.java:97-107`
+
+**Fix Required:**
+```java
+@Override
+public void validateUserConfig(String userConfig) {
+    if (StringUtils.isBlank(userConfig)) {
+        return;
+    }
+    PhabricatorConfig userConfigObj = JSON.parseObject(userConfig, PhabricatorConfig.class);
+    if (userConfigObj == null || StringUtils.isBlank(userConfigObj.getApiToken())) {
+        return;  // No valid apiToken - silently skip
+    }
+    PhabricatorConfig integrationConfig = getIntegrationConfig();
+    if (integrationConfig == null || StringUtils.isBlank(integrationConfig.getUrl())) {
+        return;  // Can't validate without URL - silently skip
+    }
+    // Merge configs and test
+    PhabricatorConfig testConfig = new PhabricatorConfig();
+    testConfig.setUrl(integrationConfig.getUrl());
+    testConfig.setApiToken(userConfigObj.getApiToken());
+    
+    PhabricatorClient testClient = new PhabricatorClient(testConfig);
+    testClient.testConnection();
+    testClient.close();
+}
+```
+
+**Discussion (2026-02-24):**
+- apiToken in accountConfig is optional (user can skip personal override)
+- If user provides blank apiToken, should pass silently (not throw error)
+- If user provides valid apiToken, should merge with URL from integration config
 | Java (SDK modules) | 11 |

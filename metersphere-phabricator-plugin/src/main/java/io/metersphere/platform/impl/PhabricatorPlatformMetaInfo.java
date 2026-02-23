@@ -27,7 +27,7 @@ public class PhabricatorPlatformMetaInfo extends AbstractPlatformMetaInfo {
 
     @Override
     public boolean isXpack() {
-        return true;
+        return false;
     }
 
     @Override
