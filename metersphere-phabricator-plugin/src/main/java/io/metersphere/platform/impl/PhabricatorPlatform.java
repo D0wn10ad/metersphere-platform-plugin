@@ -4,6 +4,7 @@ import io.metersphere.base.domain.IssuesWithBLOBs;
 import io.metersphere.platform.api.AbstractPlatform;
 import io.metersphere.platform.client.PhabricatorClient;
 import io.metersphere.platform.domain.*;
+import io.metersphere.platform.utils.PhabricatorMarkupUtils;
 import io.metersphere.plugin.exception.MSPluginException;
 import io.metersphere.plugin.utils.JSON;
 import io.metersphere.plugin.utils.LogUtil;
@@ -52,18 +53,182 @@ public class PhabricatorPlatform extends AbstractPlatform {
     @Override
     public IssuesWithBLOBs addIssue(PlatformIssuesUpdateRequest request) {
         setConfig();
+        
+        PhabricatorProjectConfig projectConfig = getProjectConfig(request.getProjectConfig());
+        PhabricatorMarkupUtils markupUtils = new PhabricatorMarkupUtils(phabricatorClient);
+        
+        List<Map<String, Object>> transactions = new ArrayList<>();
+        
+        // Title (required)
+        if (StringUtils.isNotBlank(request.getTitle())) {
+            transactions.add(Map.of(
+                "type", "title",
+                "value", request.getTitle()
+            ));
+        }
+        
+        // Description (convert Markdown to Remarkup)
+        if (StringUtils.isNotBlank(request.getDescription())) {
+            String remarkup = markupUtils.markdownToRemarkup(request.getDescription());
+            transactions.add(Map.of(
+                "type", "description",
+                "value", remarkup
+            ));
+        }
+        
+        // Subtype (default to "task")
+        String subtype = projectConfig.getDefaultSubtype();
+        if (StringUtils.isBlank(subtype)) {
+            subtype = "task";
+        }
+        transactions.add(Map.of(
+            "type", "subtype",
+            "value", subtype
+        ));
+        
+        // Project PHID
+        if (StringUtils.isNotBlank(projectConfig.getProjectPHID())) {
+            transactions.add(Map.of(
+                "type", "project",
+                "value", List.of(projectConfig.getProjectPHID())
+            ));
+        }
+        
+        try {
+            Map<String, Object> result = phabricatorClient.editTask(null, transactions);
+            
+            if (result != null && result.containsKey("result")) {
+                Object resultData = result.get("result");
+                if (resultData instanceof Map) {
+                    Map<String, Object> resultMap = (Map<String, Object>) resultData;
+                    Object objectData = resultMap.get("object");
+                    if (objectData instanceof Map) {
+                        Map<String, Object> object = (Map<String, Object>) objectData;
+                        String phid = (String) object.get("phid");
+                        if (phid != null) {
+                            // Get numeric ID from PHID using search
+                            String id = phabricatorClient.getTaskIdByPHID(phid);
+                            if (id != null) {
+                                // Store as T{id} format (e.g., T123)
+                                request.setPlatformId("T" + id);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            request.setPlatformStatus("open");
+            
+        } catch (Exception e) {
+            LogUtil.error("Failed to add issue to Phabricator", e);
+            MSPluginException.throwException("创建问题失败: " + e.getMessage());
+        }
+        
         return request;
     }
 
     @Override
     public IssuesWithBLOBs updateIssue(PlatformIssuesUpdateRequest request) {
         setConfig();
+        
+        String platformId = request.getPlatformId();
+        if (StringUtils.isBlank(platformId)) {
+            MSPluginException.throwException("平台ID不能为空");
+        }
+        
+        PhabricatorMarkupUtils markupUtils = new PhabricatorMarkupUtils(phabricatorClient);
+        
+        List<Map<String, Object>> transactions = new ArrayList<>();
+        
+        // Title
+        if (StringUtils.isNotBlank(request.getTitle())) {
+            transactions.add(Map.of(
+                "type", "title",
+                "value", request.getTitle()
+            ));
+        }
+        
+        // Description (convert Markdown to Remarkup)
+        if (StringUtils.isNotBlank(request.getDescription())) {
+            String remarkup = markupUtils.markdownToRemarkup(request.getDescription());
+            transactions.add(Map.of(
+                "type", "description",
+                "value", remarkup
+            ));
+        }
+        
+        // Status
+        if (StringUtils.isNotBlank(request.getPlatformStatus())) {
+            String phabStatus = request.getPlatformStatus();
+            transactions.add(Map.of(
+                "type", "status",
+                "value", phabStatus
+            ));
+        }
+        
+        try {
+            // Build PHID from ID - strip "T" prefix if present (e.g., "T123" -> "123")
+            String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
+            String phid = "PHID-TASK-" + id;
+            Map<String, Object> result = phabricatorClient.editTask(phid, transactions);
+            
+            if (result != null && result.containsKey("result")) {
+                Object resultData = result.get("result");
+                if (resultData instanceof Map) {
+                    Map<String, Object> resultMap = (Map<String, Object>) resultData;
+                    Object objectData = resultMap.get("object");
+                    if (objectData instanceof Map) {
+                        Map<String, Object> object = (Map<String, Object>) objectData;
+                        String newPhid = (String) object.get("phid");
+                        if (newPhid != null) {
+                            // Get numeric ID from PHID using search
+                            String newId = phabricatorClient.getTaskIdByPHID(newPhid);
+                            if (newId != null) {
+                                request.setPlatformId("T" + newId);
+                            }
+                        }
+                    }
+                }
+            }
+            
+        } catch (Exception e) {
+            LogUtil.error("Failed to update issue in Phabricator", e);
+            MSPluginException.throwException("更新问题失败: " + e.getMessage());
+        }
+        
         return request;
     }
 
     @Override
-    public void deleteIssue(String id) {
+    public void deleteIssue(String platformId) {
         setConfig();
+        
+        if (StringUtils.isBlank(platformId)) {
+            MSPluginException.throwException("平台ID不能为空");
+        }
+        
+        try {
+            // Build PHID from ID - strip "T" prefix if present (e.g., "T123" -> "123")
+            String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
+            String phid = "PHID-TASK-" + id;
+            
+            // Close the issue instead of deleting (Phabricator doesn't support hard delete)
+            List<Map<String, Object>> transactions = new ArrayList<>();
+            transactions.add(Map.of(
+                "type", "status",
+                "value", "resolved"
+            ));
+            transactions.add(Map.of(
+                "type", "comment",
+                "value", "Closed by MeterSphere"
+            ));
+            
+            phabricatorClient.editTask(phid, transactions);
+            
+        } catch (Exception e) {
+            LogUtil.error("Failed to delete issue in Phabricator", e);
+            MSPluginException.throwException("删除问题失败: " + e.getMessage());
+        }
     }
 
     @Override
