@@ -108,7 +108,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
 
     @Override
     public boolean isAttachmentUploadSupport() {
-        return false;
+        return true;
     }
 
     @Override
