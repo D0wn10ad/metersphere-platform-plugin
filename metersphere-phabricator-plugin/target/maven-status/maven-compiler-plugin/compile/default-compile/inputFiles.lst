@@ -1,3 +1,4 @@
+/home/tango/repo/metersphere-phabricator/metersphere-phabricator-plugin/src/main/java/io/metersphere/platform/utils/PhabricatorMarkupUtils.java
 /home/tango/repo/metersphere-phabricator/metersphere-phabricator-plugin/src/main/java/io/metersphere/platform/impl/PhabricatorPlatform.java
 /home/tango/repo/metersphere-phabricator/metersphere-phabricator-plugin/src/main/java/io/metersphere/platform/domain/PhabricatorProjectConfig.java
 /home/tango/repo/metersphere-phabricator/metersphere-phabricator-plugin/src/main/java/io/metersphere/platform/client/PhabricatorClient.java

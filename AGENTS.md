@@ -440,4 +440,129 @@ public void validateUserConfig(String userConfig) {
 - apiToken in accountConfig is optional (user can skip personal override)
 - If user provides blank apiToken, should pass silently (not throw error)
 - If user provides valid apiToken, should merge with URL from integration config
+
+---
+
+## Phabricator Conduit API Reference
+
+### maniphest.edit
+
+Create or update Maniphest tasks.
+
+**Endpoint:** `POST /api/maniphest.edit`
+
+**Parameters:**
+- `transactions` - List of transaction objects
+- `objectIdentifier` - (optional) Task ID, PHID, or monogram (e.g., "T123"). Omit to create new task.
+
+**Transaction Types:**
+| Type | Description | Value Type |
+|------|-------------|------------|
+| `title` | Set task title | string |
+| `description` | Set task description | string |
+| `status` | Change task status | string (e.g., "open", "resolved") |
+| `priority` | Change priority | string |
+| `subtype` | Set task subtype | string (e.g., "task", "bug", "feature") |
+| `project` | Assign to project | list of PHIDs |
+| `owner` | Assign owner | PHID |
+| `comment` | Add comment | string |
+
+**Response:**
+```json
+{
+  "object": {
+    "phid": "PHID-TASK-XXXXX"
+  },
+  "transactions": [
+    {"phid": "PHID-YYYY-1111"},
+    {"phid": "PHID-YYYY-2222"}
+  ]
+}
+```
+
+**Note:** The response only returns `phid`, NOT the numeric ID. Use `maniphest.search` to get the numeric ID.
+
+---
+
+### maniphest.search
+
+Search for Maniphest tasks.
+
+**Endpoint:** `POST /api/maniphest.search`
+
+**Parameters:**
+- `constraints` - Search constraints
+- `attachments` - Optional attachments (e.g., `{"projects": true}`)
+
+**Common Constraints:**
+| Key | Description | Value Type |
+|-----|-------------|------------|
+| `ids` | Filter by numeric IDs | list of integers |
+| `phids` | Filter by PHIDs | list of PHIDs |
+| `status` | Filter by status | string |
+| `projectPHIDs` | Filter by project | list of PHIDs |
+
+**Response:**
+```json
+{
+  "result": {
+    "data": [
+      {
+        "id": 123,
+        "phid": "PHID-TASK-XXXXX",
+        "fields": {
+          "name": "Task Title",
+          "status": {"value": "open"},
+          ...
+        }
+      }
+    ],
+    "cursor": {"limit": 100, "after": null}
+  }
+}
+```
+
+---
+
+### Task ID vs PHID
+
+- **Task ID (Monogram)**: User-facing identifier like `T123`
+- **PHID**: Internal Phabricator identifier like `PHID-TASK-XXXXX`
+
+**Conversion:**
+```java
+// ID to PHID (for updates)
+String phid = "PHID-TASK-" + id;  // "T123" -> "PHID-TASK-123"
+
+// PHID to ID (after create)
+String id = phid.substring(phid.lastIndexOf("-") + 1);  // "PHID-TASK-XXXXX" -> "XXXXX"
+
+// Store as T{id}
+String platformId = "T" + id;  // "T123"
+```
+
+---
+
+### Example: Create Task Flow
+
+```java
+// 1. Create task with maniphest.edit
+List<Map<String, Object>> transactions = new ArrayList<>();
+transactions.add(Map.of("type", "title", "value", "My Task"));
+transactions.add(Map.of("type", "description", "value", "Task description"));
+
+Map<String, Object> result = client.editTask(null, transactions);
+
+// 2. Get PHID from response
+String phid = (String) ((Map) ((Map) result.get("result")).get("object")).get("phid");
+
+// 3. Search to get numeric ID
+String numericId = client.getTaskIdByPHID(phid);
+
+// 4. Store as T{id}
+String platformId = "T" + numericId;  // e.g., "T123"
+```
+
+---
+
 | Java (SDK modules) | 11 |
