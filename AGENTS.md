@@ -565,4 +565,43 @@ String platformId = "T" + numericId;  // e.g., "T123"
 
 ---
 
+## Feature Comparison: Phabricator vs Jira
+
+Comparison with Jira plugin (v2.x-jira9) to identify missing features:
+
+### Implemented Features
+
+| Feature | Status |
+|---------|--------|
+| validateIntegrationConfig() | ✅ Implemented |
+| validateProjectConfig() | ✅ Implemented |
+| validateUserConfig() | ✅ Implemented |
+| getStatusList() | ✅ Implemented |
+| getDemands() | ✅ Implemented |
+| addIssue() | ✅ Implemented |
+| updateIssue() | ✅ Implemented |
+| deleteIssue() | ✅ Implemented |
+| syncIssues() | ✅ Implemented |
+| isAttachmentUploadSupport() | ✅ Returns true |
+| remarkupToMarkdown() | ✅ Implemented |
+| markdownToRemarkup() | ✅ Implemented |
+| file.upload API | ✅ Implemented |
+| projectExists() | ✅ Implemented |
+| getTaskIdByPHID() | ✅ Implemented |
+
+### Missing/Incomplete Features (vs Jira)
+
+| Priority | Method | Current Status | Description |
+|----------|--------|----------------|-------------|
+| **High** | getFormOptions() | NOT IMPLEMENTED | UI dropdown options for issue types, users |
+| **High** | getThirdPartCustomField() | Returns empty list | Custom field support |
+| **High** | setUserConfig() | NOT IMPLEMENTED | User-specific config |
+| **Medium** | syncIssuesAttachment() | Empty stub | Attachment sync |
+| **Medium** | getTransitions() | NOT IMPLEMENTED | Workflow transitions |
+| **Medium** | getIssueTypes() | NOT IMPLEMENTED | Available issue types |
+| **Low** | getProjectAllComponents() | NOT IMPLEMENTED | Project components |
+| **Low** | getSprintOptions() | NOT IMPLEMENTED | Available sprints |
+
+---
+
 | Java (SDK modules) | 11 |
