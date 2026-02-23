@@ -239,6 +239,20 @@ public class PhabricatorClient {
         );
     }
 
+    /**
+     * Upload a file to Phabricator
+     * @param fileName The name of the file
+     * @param data Base64 encoded file content
+     * @return Map containing the file PHID
+     */
+    public Map<String, Object> uploadFile(String fileName, String data) {
+        Map<String, Object> params = new HashMap<>();
+        params.put("name", fileName);
+        params.put("data_base64", data);
+        
+        return callConduit("file.upload", params);
+    }
+
     public void close() {
         try {
             if (httpClient != null) {
