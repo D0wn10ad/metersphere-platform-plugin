@@ -128,6 +128,32 @@ public class PhabricatorClient {
     }
 
     @SuppressWarnings("unchecked")
+    public String getTaskIdByPHID(String phid) {
+        if (phid == null || phid.isBlank()) {
+            return null;
+        }
+        
+        Map<String, Object> constraints = new HashMap<>();
+        constraints.put("phids", List.of(phid));
+        
+        Map<String, Object> result = searchTasks(constraints);
+        
+        if (result != null && result.containsKey("result")) {
+            Object resultData = result.get("result");
+            if (resultData instanceof Map) {
+                Map<String, Object> resultMap = (Map<String, Object>) resultData;
+                Object data = resultMap.get("data");
+                if (data instanceof List && !((List<?>) data).isEmpty()) {
+                    Map<String, Object> task = (Map<String, Object>) ((List<?>) data).get(0);
+                    Object id = task.get("id");
+                    return id != null ? id.toString() : null;
+                }
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
     public Map<String, Object> searchProjects(Map<String, Object> constraints) {
         Map<String, Object> params = new HashMap<>();
         params.put("constraints", constraints);

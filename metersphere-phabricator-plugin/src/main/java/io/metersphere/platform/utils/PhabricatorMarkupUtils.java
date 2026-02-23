@@ -141,4 +141,51 @@ public class PhabricatorMarkupUtils {
         }
         return refs;
     }
+
+    /**
+     * Convert Markdown to Phabricator Remarkup
+     */
+    public String markdownToRemarkup(String markdown) {
+        if (markdown == null || markdown.isBlank()) {
+            return markdown;
+        }
+        
+        String remarkup = markdown;
+        
+        // Headers: # Header -> = Header =
+        remarkup = remarkup.replaceAll("(?m)^######\\s+(.+)$", "====== $1 ======");
+        remarkup = remarkup.replaceAll("(?m)^#####\\s+(.+)$", "===== $1 =====");
+        remarkup = remarkup.replaceAll("(?m)^####\\s+(.+)$", "==== $1 ====");
+        remarkup = remarkup.replaceAll("(?m)^###\\s+(.+)$", "=== $1 ===");
+        remarkup = remarkup.replaceAll("(?m)^##\\s+(.+)$", "== $1 ==");
+        remarkup = remarkup.replaceAll("(?m)^#\\s+(.+)$", "= $1 =");
+        
+        // Bold: **text** or __text__ -> **text**
+        remarkup = remarkup.replaceAll("\\*\\*(.+?)\\*\\*", "**$1**");
+        remarkup = remarkup.replaceAll("__(.+?)__", "**$1**");
+        
+        // Italic: *text* or _text_ -> //text//
+        remarkup = remarkup.replaceAll("(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)", "//$1//");
+        remarkup = remarkup.replaceAll("(?<!_)_(?!_)(.+?)(?<!_)_(?!_)", "//$1//");
+        
+        // Code: `code` -> `code` (remarkup uses backticks too)
+        // Links: [text](url) -> [[url|text]]
+        remarkup = remarkup.replaceAll("\\[(.+?)\\]\\((.+?)\\)", "[[$2|$1]]");
+        
+        // Images: ![alt](url) -> (no direct equivalent, keep as link)
+        remarkup = remarkup.replaceAll("!\\[(.*?)\\]\\((.+?)\\)", "[[$2|$1]]");
+        
+        // Lists: - item -> * item
+        remarkup = remarkup.replaceAll("(?m)^-\\s+(.+)$", "* $1");
+        // Ordered lists: 1. item -> # numeral item
+        remarkup = remarkup.replaceAll("(?m)^\\d+\\.\\s+(.+)$", "# $1");
+        
+        // Blockquotes: > text -> > text
+        remarkup = remarkup.replaceAll("(?m)^>\\s+(.+)$", "> $1");
+        
+        // Code blocks: ```language\ncode\n``` -> `code`
+        remarkup = remarkup.replaceAll("```\\w*\\n([\\s\\S]*?)```", "`$1`");
+        
+        return remarkup;
+    }
 }
