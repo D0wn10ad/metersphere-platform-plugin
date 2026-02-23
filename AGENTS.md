@@ -76,6 +76,55 @@ package io.metersphere.platform.utils;       // Utilities
 
 ### Code Patterns
 
+#### Platform Meta Info (Frontend JSON)
+The frontend.json defines the UI fields in three sections:
+
+1. **serviceIntegration** - Platform-level config (appears in 系统设置 → 服务集成)
+2. **projectConfig** - Project-level config (appears in 项目管理)
+3. **accountConfig** - Personal override config (optional, appears in 用户信息)
+
+```json
+{
+  "serviceIntegration": {
+    "label": "Phabricator",
+    "image": "/static/index.png",
+    "tips": "Help text shown to user",
+    "formItems": [
+      {
+        "name": "url",
+        "type": "input",
+        "defaultValue": "",
+        "required": true,
+        "i18n": true,
+        "label": "organization.integration.phabricator_url",
+        "message": "Error message key"
+      }
+    ]
+  },
+  "projectConfig": {
+    "formItems": [
+      {
+        "name": "projectPHID",
+        "type": "input",
+        "required": true,
+        "i18n": true,
+        "label": "project.phabricator_project",
+        "withProjectCheck": true
+      }
+    ]
+  },
+  "accountConfig": {
+    "formItems": [
+      {
+        "name": "apiToken",
+        "type": "password",
+        "required": false
+      }
+    ]
+  }
+}
+```
+
 #### Platform Implementation Class
 ```java
 public class PhabricatorPlatform extends AbstractPlatform {
@@ -206,31 +255,43 @@ mkdir metersphere-phabricator-plugin
 
 ### 4. Implement Required Classes
 
-#### Platform Meta Info
+#### Platform Meta Info (CRITICAL - Must extend AbstractPlatformMetaInfo)
 ```java
 package io.metersphere.platform.impl;
 
-import io.metersphere.platform.api.PluginMetaInfo;
+import io.metersphere.platform.api.AbstractPlatformMetaInfo;
 
-public class PhabricatorPlatformMetaInfo extends PluginMetaInfo {
-    public static final String KEY = "Phabricator";
-    
+public class PhabricatorPlatformMetaInfo extends AbstractPlatformMetaInfo {
+
+    public static final String KEY = "Phabricator";  // Must be capitalized
+
+    public PhabricatorPlatformMetaInfo() {
+        super(PhabricatorPlatformMetaInfo.class.getClassLoader());  // Required!
+    }
+
     @Override
-    public String getId() {
+    public String getKey() {
         return KEY;
     }
 
     @Override
-    public String getName() {
-        return "Phabricator";
+    public String getVersion() {
+        return "2.10.0";
     }
 
     @Override
-    public String getDescription() {
-        return "Phabricator issue management platform";
+    public boolean isXpack() {
+        return false;  // false for open source, true for enterprise only
+    }
+
+    @Override
+    public boolean isThirdPartTemplateSupport() {
+        return false;
     }
 }
 ```
+
+**IMPORTANT: Do NOT implement PluginMetaInfo directly. You MUST extend AbstractPlatformMetaInfo.**
 
 #### Platform Implementation
 Extend `AbstractPlatform` and implement required methods from `Platform` interface:
@@ -294,3 +355,36 @@ public class PhabricatorTest {
 5. Log errors with `LogUtil.error(e)` before throwing exceptions
 6. Use builder pattern for complex request objects
 7. Keep domain classes immutable where possible
+
+## Troubleshooting
+
+### Plugin Not Showing in Service Integration
+
+**Symptom:** Plugin doesn't appear in the platform list, or error "Cannot invoke Class.getConstructor because clazz is null"
+
+**Common Causes:**
+
+1. **Wrong class hierarchy**: Must extend `AbstractPlatformMetaInfo`, not implement `PluginMetaInfo` directly
+2. **Missing constructor**: Must have `super(ClassLoader)` constructor
+3. **isXpack() returns true**: For open source MeterSphere, must return `false`
+4. **Old plugin versions**: Delete ALL old plugin versions before uploading new one
+5. **Plugin cache**: Restart MeterSphere after uploading new plugin
+
+### Deployment Checklist
+
+Before deploying a new plugin version:
+1. Delete old plugin from MeterSphere UI (both 企业版 and 开源版 tabs)
+2. Verify no old jars remain in `/opt/metersphere/data/body/plugin/`
+3. Clean old plugins from MinIO storage
+4. Upload new jar
+5. Restart MeterSphere service
+6. Check logs for successful load
+
+### SDK Versions
+
+| Component | Version |
+|-----------|---------|
+| metersphere-platform-plugin-sdk | 1.6.0 |
+| metersphere-plugin-sdk | 1.2.0 |
+| Java (plugin modules) | 17 |
+| Java (SDK modules) | 11 |
