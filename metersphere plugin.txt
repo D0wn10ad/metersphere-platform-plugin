@@ -1,0 +1,46 @@
+https://github.com/metersphere/metersphere-platform-plugin/wiki/%E6%8F%92%E4%BB%B6%E5%BC%80%E5%8F%91%E6%8C%87%E5%8D%97
+
+metersphere-jira-plugin
+│
+└──src
+      ├──main 
+      │         ├──java 
+      │         │     └──io.metersphere.platform
+      │         │           ├──Its client
+      │         │           ├──domain
+      │         │           └──impl
+      │         │                 ├──JiraPlatform
+      │         │                 └── JiraPlatformMetainfo 
+      │         └──resources 
+      │         │    ├──json
+      │         │    │    └── frontendjson
+      │         │    └──static 
+      │         │           ├──index.png 
+      │         │           └──jira-key.png 
+      │         └──test 
+      │               └──java
+      └──Target
+            └──pom.xml
+
+graph TD
+    A["metersphere-jira-plugin"] --> B["metersphere-platform-plugin-sdk"]
+    B --> C["metersphere-plugin-sdk"]
+    C --> D["commons-io"]
+    C --> E["jackson-databind"]
+    E --> F["jackson-annotations"]
+    E --> G["jackson-core"]
+    C --> H["commons-lang3"]
+    C --> I["commons-collections"]
+    C --> J["commons-lang"]
+    C --> K["slf4j-api"]
+    C --> L["lombok"]
+    C --> M["spring-web"]
+    M --> N["spring-beans"]
+    N --> O["spring-core"]
+    M --> O["spring-core"]
+    O --> P["spring-jcl"]
+    C --> Q["httpclient"]
+    Q --> R["httpcore"]
+    Q --> S["commons-logging"]
+    Q --> T["commons-codec"]
+    C --> U["domain"]   

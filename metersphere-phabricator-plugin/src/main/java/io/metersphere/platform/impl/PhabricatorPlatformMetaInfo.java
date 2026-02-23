@@ -1,9 +1,14 @@
 package io.metersphere.platform.impl;
 
-import io.metersphere.platform.api.PluginMetaInfo;
+import io.metersphere.platform.api.AbstractPlatformMetaInfo;
 
-public class PhabricatorPlatformMetaInfo implements PluginMetaInfo {
+public class PhabricatorPlatformMetaInfo extends AbstractPlatformMetaInfo {
+
     public static final String KEY = "Phabricator";
+
+    public PhabricatorPlatformMetaInfo() {
+        super(PhabricatorPlatformMetaInfo.class.getClassLoader());
+    }
 
     @Override
     public String getKey() {
@@ -28,10 +33,5 @@ public class PhabricatorPlatformMetaInfo implements PluginMetaInfo {
     @Override
     public boolean isThirdPartTemplateSupport() {
         return false;
-    }
-
-    @Override
-    public String getFrontendMetaData() {
-        return null;
     }
 }

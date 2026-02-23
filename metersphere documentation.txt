@@ -1,0 +1,11 @@
+https://github.com/metersphere/metersphere/tree/v2.10.18-lts-hotfix
+
+https://metersphere.io/docs/v2.x/user_manual/plugin_use/service_integration_plugin/
+https://metersphere.io/docs/v2.x/faq/service_integration/#7-jira
+https://kb.fit2cloud.com/?p=258
+https://kb.fit2cloud.com/?p=260
+https://kb.fit2cloud.com/?p=259
+https://kb.fit2cloud.com/?p=257
+
+https://github.com/D0wn10ad/metersphere-platform-plugin/tree/v2.10
+https://github.com/metersphere-customer-success/metersphere-platform-plugin/tree/v2.x-jira9

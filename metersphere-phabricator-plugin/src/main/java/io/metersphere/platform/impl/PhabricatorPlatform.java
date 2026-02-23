@@ -95,4 +95,9 @@ public class PhabricatorPlatform extends AbstractPlatform {
     public List<PlatformStatusDTO> getStatusList(String projectConfig) {
         return new ArrayList<>();
     }
+
+    @Override
+    public void syncIssuesAttachment(SyncIssuesAttachmentRequest request) {
+        // Not supported
+    }
 }
