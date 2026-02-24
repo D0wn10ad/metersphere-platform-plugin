@@ -411,6 +411,92 @@ public class PhabricatorPlatform extends AbstractPlatform {
     }
 
     @Override
+    public List<SelectOption> getFormOptions(GetOptionRequest request) {
+        String method = request.getOptionMethod();
+        if (StringUtils.isBlank(method)) {
+            return new ArrayList<>();
+        }
+        
+        try {
+            return switch (method) {
+                case "getUserSearchOptions" -> getUserSearchOptions(request);
+                case "getIssueTypes" -> getIssueTypes(request);
+                default -> new ArrayList<>();
+            };
+        } catch (Exception e) {
+            LogUtil.error("Error getting form options for method: " + method, e);
+            return new ArrayList<>();
+        }
+    }
+
+    public List<SelectOption> getUserSearchOptions(GetOptionRequest request) {
+        List<SelectOption> options = new ArrayList<>();
+        
+        try {
+            setConfig();
+            
+            Map<String, Object> constraints = new HashMap<>();
+            if (StringUtils.isNotBlank(request.getQuery())) {
+                constraints.put("nameLike", request.getQuery());
+            }
+            
+            Map<String, Object> result = phabricatorClient.searchUsers(constraints);
+            
+            if (result != null && result.containsKey("result")) {
+                Object resultData = result.get("result");
+                if (resultData instanceof Map) {
+                    Map<String, Object> resultMap = (Map<String, Object>) resultData;
+                    Object data = resultMap.get("data");
+                    if (data instanceof List) {
+                        List<?> dataList = (List<?>) data;
+                        for (Object item : dataList) {
+                            if (item instanceof Map) {
+                                Map<String, Object> user = (Map<String, Object>) item;
+                                Object fields = user.get("fields");
+                                if (fields instanceof Map) {
+                                    Map<String, Object> userFields = (Map<String, Object>) fields;
+                                    Object userName = userFields.get("userName");
+                                    Object realName = userFields.get("realName");
+                                    Object phid = user.get("phid");
+                                    
+                                    String displayName = userName != null ? userName.toString() : "";
+                                    if (realName != null && !realName.toString().isBlank()) {
+                                        displayName += " (" + realName.toString() + ")";
+                                    }
+                                    
+                                    SelectOption option = new SelectOption(displayName, phid != null ? phid.toString() : "");
+                                    options.add(option);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LogUtil.error("Failed to get user search options", e);
+        }
+        
+        return options;
+    }
+
+    public List<SelectOption> getIssueTypes(GetOptionRequest request) {
+        List<SelectOption> options = new ArrayList<>();
+        
+        // Phabricator Maniphest supports subtypes, but they're not strictly enforced
+        // Return common subtypes as issue type options
+        String[] subtypes = {"task", "bug", "feature", "improvement", "epic"};
+        for (String subtype : subtypes) {
+            SelectOption option = new SelectOption(
+                subtype.substring(0, 1).toUpperCase() + subtype.substring(1),
+                subtype
+            );
+            options.add(option);
+        }
+        
+        return options;
+    }
+
+    @Override
     public List<PlatformStatusDTO> getStatusList(String projectConfig) {
         List<PlatformStatusDTO> statuses = new ArrayList<>();
         List<Map<String, Object>> availableStatuses = phabricatorClient.getAvailableStatuses();
