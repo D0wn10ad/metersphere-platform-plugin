@@ -67,12 +67,25 @@ public class PhabricatorClient {
             String jsonParams = JSON.toJSONString(apiParams);
             String formBody = "params=" + jsonParams + "&output=json";
 
+            if (config.isDebugMode()) {
+                LogUtil.info("[Phabricator DEBUG] Calling API: " + method);
+                LogUtil.info("[Phabricator DEBUG] URL: " + url);
+                LogUtil.info("[Phabricator DEBUG] Request: " + formBody);
+            }
+
             HttpPost httpPost = new HttpPost(url);
             httpPost.setHeader("Content-Type", "application/x-www-form-urlencoded");
             httpPost.setEntity(new StringEntity(formBody, ContentType.APPLICATION_FORM_URLENCODED));
 
             try (org.apache.hc.core5.http.ClassicHttpResponse response = httpClient.execute(httpPost)) {
                 String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+
+                if (config.isDebugMode()) {
+                    String truncatedResponse = responseBody.length() > 2000 
+                        ? responseBody.substring(0, 2000) + "... [truncated]" 
+                        : responseBody;
+                    LogUtil.info("[Phabricator DEBUG] Response: " + truncatedResponse);
+                }
 
                 Map<String, Object> body = JSON.parseObject(responseBody, Map.class);
 

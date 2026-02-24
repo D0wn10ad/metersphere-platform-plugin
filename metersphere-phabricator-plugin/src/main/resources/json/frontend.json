@@ -21,6 +21,15 @@
         "i18n": true,
         "label": "organization.integration.api_token",
         "message": "organization.integration.input_api_token"
+      },
+      {
+        "name": "debugMode",
+        "type": "switch",
+        "defaultValue": false,
+        "required": false,
+        "i18n": true,
+        "label": "organization.integration.phabricator_debug",
+        "tips": "启用后将在日志中打印 API 请求和响应内容"
       }
     ]
   },
