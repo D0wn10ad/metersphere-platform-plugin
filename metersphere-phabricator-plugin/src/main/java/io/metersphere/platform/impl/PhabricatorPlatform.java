@@ -145,8 +145,8 @@ public class PhabricatorPlatform extends AbstractPlatform {
                             // Get numeric ID from PHID using search
                             String id = phabricatorClient.getTaskIdByPHID(phid);
                             if (id != null) {
-                                // Store as T{id} format (e.g., T123)
-                                request.setPlatformId("T" + id);
+                                // Store as numeric ID directly (matches maniphest.edit expectation)
+                                request.setPlatformId(id); // Store as numeric ID directly
                             }
                         }
                     }
@@ -243,7 +243,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
                             // Get numeric ID from PHID using search
                             String newId = phabricatorClient.getTaskIdByPHID(newPhid);
                             if (newId != null) {
-                                request.setPlatformId("T" + newId);
+                                request.setPlatformId(id); // Keep existing ID
                             }
                         }
                     }
