@@ -60,32 +60,21 @@ public class PhabricatorPlatform extends AbstractPlatform {
             Map<String, Object> constraints = new HashMap<>();
             constraints.put("projectPHIDs", List.of(projectConfig.getProjectPHID()));
             
-            Map<String, Object> result = phabricatorClient.searchTasks(constraints);
+            List<Map<String, Object>> results = phabricatorClient.searchTasks(constraints);
             
-            if (result != null && result.containsKey("result")) {
-                Object resultData = result.get("result");
-                if (resultData instanceof Map) {
-                    Map<String, Object> resultMap = (Map<String, Object>) resultData;
-                    Object data = resultMap.get("data");
-                    if (data instanceof List) {
-                        List<?> dataList = (List<?>) data;
-                        for (Object item : dataList) {
-                            if (item instanceof Map) {
-                                Map<String, Object> task = (Map<String, Object>) item;
-                                Object id = task.get("id");
-                                Object fields = task.get("fields");
-                                if (fields instanceof Map) {
-                                    Map<String, Object> taskFields = (Map<String, Object>) fields;
-                                    Object nameObj = taskFields.get("name");
-                                    if (nameObj != null) {
-                                        DemandDTO demand = new DemandDTO();
-                                        demand.setId(id != null ? "T" + id : null);
-                                        demand.setName(nameObj.toString());
-                                        demand.setPlatform(PhabricatorPlatformMetaInfo.KEY);
-                                        demands.add(demand);
-                                    }
-                                }
-                            }
+            if (results != null) {
+                for (Map<String, Object> task : results) {
+                    Object id = task.get("id");
+                    Object fields = task.get("fields");
+                    if (fields instanceof Map) {
+                        Map<String, Object> taskFields = (Map<String, Object>) fields;
+                        Object nameObj = taskFields.get("name");
+                        if (nameObj != null) {
+                            DemandDTO demand = new DemandDTO();
+                            demand.setId(id != null ? "T" + id : null);
+                            demand.setName(nameObj.toString());
+                            demand.setPlatform(PhabricatorPlatformMetaInfo.KEY);
+                            demands.add(demand);
                         }
                     }
                 }
@@ -133,10 +122,10 @@ public class PhabricatorPlatform extends AbstractPlatform {
             "value", subtype
         ));
         
-        // Project PHID
+        // Project PHID - use projects.add to add project tag
         if (StringUtils.isNotBlank(projectConfig.getProjectPHID())) {
             transactions.add(Map.of(
-                "type", "project",
+                "type", "projects.add",
                 "value", List.of(projectConfig.getProjectPHID())
             ));
         }
@@ -348,53 +337,46 @@ public class PhabricatorPlatform extends AbstractPlatform {
                 Map<String, Object> constraints = new HashMap<>();
                 constraints.put("ids", List.of(Integer.parseInt(id)));
                 
-                Map<String, Object> searchResult = phabricatorClient.searchTasks(constraints);
+                List<Map<String, Object>> results = phabricatorClient.searchTasks(constraints);
                 
-                if (searchResult != null && searchResult.containsKey("result")) {
-                    Object resultData = searchResult.get("result");
-                    if (resultData instanceof Map) {
-                        Map<String, Object> resultMap = (Map<String, Object>) resultData;
-                        Object data = resultMap.get("data");
-                        if (data instanceof List && !((List<?>) data).isEmpty()) {
-                            Map<String, Object> task = (Map<String, Object>) ((List<?>) data).get(0);
-                            Object fields = task.get("fields");
-                            
-                            if (fields instanceof Map) {
-                                Map<String, Object> taskFields = (Map<String, Object>) fields;
-                                
-                                PlatformIssuesDTO updatedIssue = new PlatformIssuesDTO();
-                                updatedIssue.setPlatformId(platformId);
-                                
-                                // Title
-                                Object nameObj = taskFields.get("name");
-                                if (nameObj != null) {
-                                    updatedIssue.setTitle(nameObj.toString());
-                                }
-                                
-                                // Description - convert from Remarkup to Markdown
-                                Object descObj = taskFields.get("description");
-                                if (descObj instanceof Map) {
-                                    Map<String, Object> descMap = (Map<String, Object>) descObj;
-                                    Object rawDesc = descMap.get("raw");
-                                    if (rawDesc != null) {
-                                        String markdown = markupUtils.remarkupToMarkdown(rawDesc.toString(), "maniphest");
-                                        updatedIssue.setDescription(markdown);
-                                    }
-                                }
-                                
-                                // Status
-                                Object statusObj = taskFields.get("status");
-                                if (statusObj instanceof Map) {
-                                    Map<String, Object> statusMap = (Map<String, Object>) statusObj;
-                                    Object statusValue = statusMap.get("value");
-                                    if (statusValue != null) {
-                                        updatedIssue.setPlatformStatus(statusValue.toString());
-                                    }
-                                }
-                                
-                                result.getUpdateIssues().add(updatedIssue);
+                if (results != null && !results.isEmpty()) {
+                    Map<String, Object> task = results.get(0);
+                    Object fields = task.get("fields");
+                    
+                    if (fields instanceof Map) {
+                        Map<String, Object> taskFields = (Map<String, Object>) fields;
+                        
+                        PlatformIssuesDTO updatedIssue = new PlatformIssuesDTO();
+                        updatedIssue.setPlatformId(platformId);
+                        
+                        // Title
+                        Object nameObj = taskFields.get("name");
+                        if (nameObj != null) {
+                            updatedIssue.setTitle(nameObj.toString());
+                        }
+                        
+                        // Description - convert from Remarkup to Markdown
+                        Object descObj = taskFields.get("description");
+                        if (descObj instanceof Map) {
+                            Map<String, Object> descMap = (Map<String, Object>) descObj;
+                            Object rawDesc = descMap.get("raw");
+                            if (rawDesc != null) {
+                                String markdown = markupUtils.remarkupToMarkdown(rawDesc.toString(), "maniphest");
+                                updatedIssue.setDescription(markdown);
                             }
                         }
+                        
+                        // Status
+                        Object statusObj = taskFields.get("status");
+                        if (statusObj instanceof Map) {
+                            Map<String, Object> statusMap = (Map<String, Object>) statusObj;
+                            Object statusValue = statusMap.get("value");
+                            if (statusValue != null) {
+                                updatedIssue.setPlatformStatus(statusValue.toString());
+                            }
+                        }
+                        
+                        result.getUpdateIssues().add(updatedIssue);
                     }
                 }
             } catch (Exception e) {
@@ -440,35 +422,24 @@ public class PhabricatorPlatform extends AbstractPlatform {
                 constraints.put("nameLike", request.getQuery());
             }
             
-            Map<String, Object> result = phabricatorClient.searchUsers(constraints);
+            List<Map<String, Object>> results = phabricatorClient.searchUsers(constraints);
             
-            if (result != null && result.containsKey("result")) {
-                Object resultData = result.get("result");
-                if (resultData instanceof Map) {
-                    Map<String, Object> resultMap = (Map<String, Object>) resultData;
-                    Object data = resultMap.get("data");
-                    if (data instanceof List) {
-                        List<?> dataList = (List<?>) data;
-                        for (Object item : dataList) {
-                            if (item instanceof Map) {
-                                Map<String, Object> user = (Map<String, Object>) item;
-                                Object fields = user.get("fields");
-                                if (fields instanceof Map) {
-                                    Map<String, Object> userFields = (Map<String, Object>) fields;
-                                    Object userName = userFields.get("userName");
-                                    Object realName = userFields.get("realName");
-                                    Object phid = user.get("phid");
-                                    
-                                    String displayName = userName != null ? userName.toString() : "";
-                                    if (realName != null && !realName.toString().isBlank()) {
-                                        displayName += " (" + realName.toString() + ")";
-                                    }
-                                    
-                                    SelectOption option = new SelectOption(displayName, phid != null ? phid.toString() : "");
-                                    options.add(option);
-                                }
-                            }
+            if (results != null) {
+                for (Map<String, Object> user : results) {
+                    Object fields = user.get("fields");
+                    if (fields instanceof Map) {
+                        Map<String, Object> userFields = (Map<String, Object>) fields;
+                        Object userName = userFields.get("userName");
+                        Object realName = userFields.get("realName");
+                        Object phid = user.get("phid");
+                        
+                        String displayName = userName != null ? userName.toString() : "";
+                        if (realName != null && !realName.toString().isBlank()) {
+                            displayName += " (" + realName.toString() + ")";
                         }
+                        
+                        SelectOption option = new SelectOption(displayName, phid != null ? phid.toString() : "");
+                        options.add(option);
                     }
                 }
             }

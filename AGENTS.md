@@ -463,7 +463,9 @@ Create or update Maniphest tasks.
 | `status` | Change task status | string (e.g., "open", "resolved") |
 | `priority` | Change priority | string |
 | `subtype` | Set task subtype | string (e.g., "task", "bug", "feature") |
-| `project` | Assign to project | list of PHIDs |
+| `projects.add` | Add project tags | list of PHIDs |
+| `projects.remove` | Remove project tags | list of PHIDs |
+| `projects.set` | Set project tags (overwrite) | list of PHIDs |
 | `owner` | Assign owner | PHID |
 | `comment` | Add comment | string |
 
@@ -601,6 +603,190 @@ Comparison with Jira plugin (v2.x-jira9) to identify missing features:
 | **Medium** | getIssueTypes() | NOT IMPLEMENTED | Available issue types |
 | **Low** | getProjectAllComponents() | NOT IMPLEMENTED | Project components |
 | **Low** | getSprintOptions() | NOT IMPLEMENTED | Available sprints |
+
+---
+
+## Retry Logic and Error Handling
+
+### Overview
+
+The PhabricatorClient implements automatic retry logic to handle transient failures when communicating with Phabricator/Phorge instances.
+
+### Configuration
+
+| Setting | Default | Description |
+|---------|-------- Max Retries |-|-------------|
+| 3 | Number of retry attempts before giving up |
+| Initial Delay | 1000ms | Starting delay between retries |
+| Backoff Factor | 2 | Exponential backoff multiplier (1s → 2s → 4s) |
+| Connect Timeout | 30s | Time to establish connection |
+| Response Timeout | 120s | Time to wait for response |
+| Connection Request Timeout | 30s | Time to wait for connection from pool |
+
+### Retry Conditions
+
+The client automatically retries on these error types:
+
+| Error Pattern | Examples | Retryable |
+|---------------|----------|-----------|
+| Timeout | "timeout", "SocketTimeoutException" | ✅ Yes |
+| Connection | "connection refused", "connection reset" | ✅ Yes |
+| Empty Response | "Empty response body" | ✅ Yes |
+| Parse Error | "Failed to parse JSON" | ✅ Yes |
+
+**Non-retryable errors (won't fix themselves by retrying):**
+- HTTP 4xx errors (400 Bad Request, 401 Unauthorized, 403 Forbidden)
+- HTTP 5xx errors (500 Server Error, 503 Service Unavailable)
+- Phabricator API errors with `error_code` in response body
+
+### Implementation
+
+```java
+// PhabricatorClient.java - callConduitWithRetry()
+public Map<String, Object> callConduit(String method, Map<String, Object> params) {
+    return callConduitWithRetry(method, params, 3, 1000);
+}
+
+private Map<String, Object> callConduitWithRetry(String method, Map<String, Object> params, 
+                                                   int maxRetries, long initialDelayMs) {
+    for (int attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            // ... API call logic
+        } catch (Exception e) {
+            if (attempt < maxRetries && isRetryableException(e)) {
+                long delayMs = initialDelayMs * (1L << attempt);
+                LogUtil.warn("Phabricator API call failed (attempt " + (attempt + 1) + 
+                    "), retrying in " + delayMs + "ms: " + method);
+                Thread.sleep(delayMs);
+            }
+        }
+    }
+}
+```
+
+### Pagination and Partial Results
+
+When fetching large datasets (e.g., 15,000 tasks), the client:
+
+1. Fetches 100 results per page (Phabricator limit)
+2. Automatically follows `cursor.after` tokens for pagination
+3. **Returns partial results** if max limit is reached or error occurs mid-pagination
+
+```java
+// Default max 5000 results to prevent memory exhaustion
+private List<Map<String, Object>> searchWithPagination(String method, Map<String, Object> params) {
+    return searchWithPagination(method, params, 5000);
+}
+```
+
+### Pitfalls to Avoid
+
+| Pitfall | Problem | Solution |
+|---------|---------|----------|
+| No timeouts | Requests hang indefinitely on slow Phabricator | Added 30s/120s timeouts |
+| Retry on HTTP errors | Wasting time retrying invalid params | HTTP 4xx/5xx not retried |
+| No retry on parse error | Single malformed JSON loses all progress | Added retry for parse errors |
+| Load all 15K tasks | Memory exhaustion with large datasets | Default 5000 result limit |
+| Silent failures | Can't tell if pagination ended normally or due to error | Added warning logs |
+| Blocking retries | Thread blocks during retry delay | Exponential backoff reduces impact |
+
+### Memory Considerations
+
+For 15,000 tasks with long descriptions:
+
+| Scenario | Est. Memory |
+|----------|-------------|
+| 15K tasks (no limit) | 750MB+ (10KB-100KB per task) |
+| Limited to 5000 | ~250MB max |
+| 100 per page, 120s timeout | Plenty of time per page |
+
+---
+
+## Debug Mode
+
+### Enabling Debug Mode
+
+Add `debugMode: true` to the integration configuration in `frontend.json`:
+
+```json
+{
+  "serviceIntegration": {
+    "formItems": [
+      {
+        "name": "url",
+        "type": "input",
+        "required": true,
+        "label": "organization.integration.phabricator_url"
+      },
+      {
+        "name": "apiToken",
+        "type": "password",
+        "required": true,
+        "label": "organization.integration.phabricator_token"
+      },
+      {
+        "name": "debugMode",
+        "type": "switch",
+        "label": "Enable Debug Logging",
+        "defaultValue": false
+      }
+    ]
+  }
+}
+```
+
+### What Gets Logged
+
+When `debugMode` is enabled, the client logs:
+
+| Log Type | Example |
+|----------|---------|
+| API Method | `[Phabricator DEBUG] Calling API: maniphest.search (attempt 1)` |
+| URL | `[Phabricator DEBUG] URL: https://phorge.example.com/api/maniphest.search` |
+| Request | `[Phabricator DEBUG] Request: params={...}&output=json` |
+| Response | `[Phabricator DEBUG] Response: {"result":{...}} [truncated]` |
+| Pagination | `[Phabricator DEBUG] maniphest.search page 5: 100 results, total: 500` |
+
+### Response Truncation
+
+Debug logs truncate responses longer than 2000 characters to prevent log flooding:
+
+```
+[Phabricator DEBUG] Response: {"result":{"data":[{"id":1,...[truncated]
+```
+
+### Security Considerations
+
+⚠️ **Warning:** Debug mode logs sensitive data:
+
+- API tokens (in request body)
+- Full request/response payloads
+- Task descriptions (may contain sensitive info)
+
+**Only enable debug mode:**
+- During development/testing
+- When diagnosing issues
+- Never in production with real credentials
+
+### Implementation
+
+The debug mode is checked in `PhabricatorClient.java`:
+
+```java
+if (config.isDebugMode()) {
+    LogUtil.info("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
+    LogUtil.info("[Phabricator DEBUG] URL: " + url);
+    LogUtil.info("[Phabricator DEBUG] Request: " + formBody);
+}
+
+// Response logging (truncated)
+if (config.isDebugMode()) {
+    String truncatedResponse = responseBody.length() > 2000 
+        ? responseBody.substring(0, 2000) + "... [truncated]" 
+        : responseBody;
+    LogUtil.info("[Phabricator DEBUG] Response: " + truncatedResponse);
+}
+```
 
 ---
 
