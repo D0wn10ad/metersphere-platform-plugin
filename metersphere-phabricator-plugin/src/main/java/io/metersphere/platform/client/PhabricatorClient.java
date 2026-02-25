@@ -386,11 +386,16 @@ public class PhabricatorClient {
 
     public List<Map<String, Object>> getAvailableSubtypes() {
         return List.of(
-            Map.of("value", "task", "name", "Task"),
-            Map.of("value", "story", "name", "Story"),
-            Map.of("value", "epic", "name", "Epic"),
+            Map.of("value", "default", "name", "Task"),
             Map.of("value", "bug", "name", "Bug"),
-            Map.of("value", "feature", "name", "Feature")
+            Map.of("value", "defect", "name", "Defect"),
+            Map.of("value", "feature", "name", "Feature"),
+            Map.of("value", "businessrequest", "name", "Epic"),
+            Map.of("value", "issue", "name", "Issue"),
+            Map.of("value", "general", "name", "General"),
+            Map.of("value", "tech", "name", "Tech"),
+            Map.of("value", "design", "name", "Design"),
+            Map.of("value", "change", "name", "Change")
         );
     }
 

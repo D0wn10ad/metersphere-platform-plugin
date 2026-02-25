@@ -112,10 +112,10 @@ public class PhabricatorPlatform extends AbstractPlatform {
             ));
         }
         
-        // Subtype (default to "task")
+        // Subtype (default to "bug" for new tasks)
         String subtype = projectConfig.getDefaultSubtype();
         if (StringUtils.isBlank(subtype)) {
-            subtype = "task";
+            subtype = "bug";
         }
         transactions.add(Map.of(
             "type", "subtype",
@@ -202,9 +202,33 @@ public class PhabricatorPlatform extends AbstractPlatform {
             ));
         }
         
+        // Subtype - preserve existing or default to "bug"
+        String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
+        String subtypeToUse = "bug";
         try {
-            // Build PHID from ID - strip "T" prefix if present (e.g., "T123" -> "123")
-            String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
+            Map<String, Object> currentTask = phabricatorClient.getTask(id);
+            if (currentTask != null) {
+                Object fields = currentTask.get("fields");
+                if (fields instanceof Map) {
+                    Object subtypeObj = ((Map<String, Object>) fields).get("subtype");
+                    if (subtypeObj instanceof Map) {
+                        String existingSubtype = (String) ((Map<String, Object>) subtypeObj).get("value");
+                        if (StringUtils.isNotBlank(existingSubtype)) {
+                            subtypeToUse = existingSubtype;
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LogUtil.warn("Failed to get current task subtype, using default 'bug': " + e.getMessage());
+        }
+        transactions.add(Map.of(
+            "type", "subtype",
+            "value", subtypeToUse
+        ));
+        
+        try {
+            // Build PHID from ID (already computed above)
             String phid = "PHID-TASK-" + id;
             Map<String, Object> result = phabricatorClient.editTask(phid, transactions);
             
@@ -453,15 +477,11 @@ public class PhabricatorPlatform extends AbstractPlatform {
     public List<SelectOption> getIssueTypes(GetOptionRequest request) {
         List<SelectOption> options = new ArrayList<>();
         
-        // Phabricator Maniphest supports subtypes, but they're not strictly enforced
-        // Return common subtypes as issue type options
-        String[] subtypes = {"task", "bug", "feature", "improvement", "epic"};
-        for (String subtype : subtypes) {
-            SelectOption option = new SelectOption(
-                subtype.substring(0, 1).toUpperCase() + subtype.substring(1),
-                subtype
-            );
-            options.add(option);
+        List<Map<String, Object>> subtypes = phabricatorClient.getAvailableSubtypes();
+        for (Map<String, Object> subtype : subtypes) {
+            String value = (String) subtype.get("value");
+            String name = (String) subtype.get("name");
+            options.add(new SelectOption(name, value));
         }
         
         return options;
