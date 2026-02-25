@@ -228,9 +228,8 @@ public class PhabricatorPlatform extends AbstractPlatform {
         ));
         
         try {
-            // Build PHID from ID (already computed above)
-            String phid = "PHID-TASK-" + id;
-            Map<String, Object> result = phabricatorClient.editTask(phid, transactions);
+            // Use numeric ID directly with maniphest.edit
+            Map<String, Object> result = phabricatorClient.editTask(id, transactions);
             
             if (result != null && result.containsKey("result")) {
                 Object resultData = result.get("result");
@@ -268,9 +267,8 @@ public class PhabricatorPlatform extends AbstractPlatform {
         }
         
         try {
-            // Build PHID from ID - strip "T" prefix if present (e.g., "T123" -> "123")
+            // Use numeric ID directly with maniphest.edit
             String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
-            String phid = "PHID-TASK-" + id;
             
             // Close the issue instead of deleting (Phabricator doesn't support hard delete)
             List<Map<String, Object>> transactions = new ArrayList<>();
@@ -283,7 +281,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
                 "value", "Closed by MeterSphere"
             ));
             
-            phabricatorClient.editTask(phid, transactions);
+            phabricatorClient.editTask(id, transactions);
             
         } catch (Exception e) {
             LogUtil.error("Failed to delete issue in Phabricator", e);
