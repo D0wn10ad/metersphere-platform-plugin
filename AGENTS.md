@@ -590,20 +590,36 @@ Comparison with Jira plugin (v2.x-jira9) to identify missing features:
 | file.upload API | ✅ Implemented |
 | projectExists() | ✅ Implemented |
 | getTaskIdByPHID() | ✅ Implemented |
+| getFormOptions() | ✅ Implemented |
+| getIssueTypes() | ✅ Implemented |
+### Bug Fixes Applied (2026-02-25)
+
+| Issue | Fix |
+|-------|-----|
+| Transaction type `"project"` invalid | Changed to `"projects.add"` for adding project tags |
+| Constructed fake PHID from ID | Now uses numeric ID directly with maniphest.edit |
+| Default subtype was "task" | Changed to "bug" (more common in Phorge) |
+| HTTP errors being retried | HTTP 4xx/5xx now fail immediately (not retried) |
+| Debug logs using LogUtil.info() | Changed to LogUtil.debug() |
+| API token logged in plain text | Added maskToken() to mask token as ***MASKED*** |
+| Comments didn't show task ID | Added humanReadableId (T+id) in delete comments |
+
+### Subtype Handling
+
+- **Create new issue**: Default subtype is "bug"
+- **Update existing issue**: Preserves existing subtype, defaults to "bug" if none
+- **Available subtypes**: default, bug, defect, feature, businessrequest, issue, general, tech, design, change
 
 ### Missing/Incomplete Features (vs Jira)
 
 | Priority | Method | Current Status | Description |
 |----------|--------|----------------|-------------|
-| **High** | getFormOptions() | NOT IMPLEMENTED | UI dropdown options for issue types, users |
 | **High** | getThirdPartCustomField() | Returns empty list | Custom field support |
 | **High** | setUserConfig() | NOT IMPLEMENTED | User-specific config |
 | **Medium** | syncIssuesAttachment() | Empty stub | Attachment sync |
 | **Medium** | getTransitions() | NOT IMPLEMENTED | Workflow transitions |
-| **Medium** | getIssueTypes() | NOT IMPLEMENTED | Available issue types |
 | **Low** | getProjectAllComponents() | NOT IMPLEMENTED | Project components |
 | **Low** | getSprintOptions() | NOT IMPLEMENTED | Available sprints |
-
 ---
 
 ## Retry Logic and Error Handling
