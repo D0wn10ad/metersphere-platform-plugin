@@ -86,9 +86,9 @@ public class PhabricatorClient {
                 String formBody = "params=" + jsonParams + "&output=json";
 
                 if (config.isDebugMode()) {
-                    LogUtil.info("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
-                    LogUtil.info("[Phabricator DEBUG] URL: " + url);
-                    LogUtil.info("[Phabricator DEBUG] Request: " + formBody);
+                    LogUtil.debug("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
+                    LogUtil.debug("[Phabricator DEBUG] URL: " + url);
+                    LogUtil.debug("[Phabricator DEBUG] Request: " + maskToken(formBody));
                 }
 
                 HttpPost httpPost = new HttpPost(url);
@@ -107,7 +107,7 @@ public class PhabricatorClient {
                         String truncatedResponse = responseBody.length() > 2000 
                             ? responseBody.substring(0, 2000) + "... [truncated]" 
                             : responseBody;
-                        LogUtil.info("[Phabricator DEBUG] Response: " + truncatedResponse);
+                        LogUtil.debug("[Phabricator DEBUG] Response: " + truncatedResponse);
                     }
 
                     if (responseBody == null || responseBody.isBlank()) {
@@ -173,6 +173,13 @@ public class PhabricatorClient {
                lowerMessage.contains("empty response") ||
                lowerMessage.contains("parse") ||
                lowerMessage.contains("json");
+    }
+
+    private String maskToken(String formBody) {
+        if (formBody == null) {
+            return null;
+        }
+        return formBody.replaceAll("\"token\":\"[^\"]+\"", "\"token\":\"***MASKED***\"");
     }
 
     public void auth() {
@@ -248,7 +255,7 @@ public class PhabricatorClient {
                 pageCount++;
                 
                 if (config.isDebugMode()) {
-                    LogUtil.info("[Phabricator DEBUG] " + method + " page " + pageCount + ": " + pageData.size() + " results, total: " + allResults.size());
+                    LogUtil.debug("[Phabricator DEBUG] " + method + " page " + pageCount + ": " + pageData.size() + " results, total: " + allResults.size());
                 }
             } else {
                 break;
@@ -265,7 +272,7 @@ public class PhabricatorClient {
         } while (afterCursor != null && !afterCursor.isEmpty());
         
         if (config.isDebugMode()) {
-            LogUtil.info("[Phabricator DEBUG] " + method + " completed: " + allResults.size() + " total results from " + pageCount + " pages");
+            LogUtil.debug("[Phabricator DEBUG] " + method + " completed: " + allResults.size() + " total results from " + pageCount + " pages");
         }
         
         return allResults;

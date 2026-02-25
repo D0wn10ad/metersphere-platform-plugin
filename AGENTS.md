@@ -737,15 +737,17 @@ Add `debugMode: true` to the integration configuration in `frontend.json`:
 
 ### What Gets Logged
 
-When `debugMode` is enabled, the client logs:
+When `debugMode` is enabled, the client logs (using `LogUtil.debug()`):
 
 | Log Type | Example |
 |----------|---------|
 | API Method | `[Phabricator DEBUG] Calling API: maniphest.search (attempt 1)` |
 | URL | `[Phabricator DEBUG] URL: https://phorge.example.com/api/maniphest.search` |
-| Request | `[Phabricator DEBUG] Request: params={...}&output=json` |
+| Request | `[Phabricator DEBUG] Request: params={"token":"***MASKED***",...}&output=json` |
 | Response | `[Phabricator DEBUG] Response: {"result":{...}} [truncated]` |
 | Pagination | `[Phabricator DEBUG] maniphest.search page 5: 100 results, total: 500` |
+
+**Note:** The API token is always masked as `***MASKED***` in request logs.
 
 ### Response Truncation
 
@@ -770,13 +772,13 @@ Debug logs truncate responses longer than 2000 characters to prevent log floodin
 
 ### Implementation
 
-The debug mode is checked in `PhabricatorClient.java`:
+The debug mode uses `LogUtil.debug()` for logging (not `info`), and masks the API token:
 
 ```java
 if (config.isDebugMode()) {
-    LogUtil.info("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
-    LogUtil.info("[Phabricator DEBUG] URL: " + url);
-    LogUtil.info("[Phabricator DEBUG] Request: " + formBody);
+    LogUtil.debug("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
+    LogUtil.debug("[Phabricator DEBUG] URL: " + url);
+    LogUtil.debug("[Phabricator DEBUG] Request: " + maskToken(formBody));
 }
 
 // Response logging (truncated)
@@ -784,7 +786,12 @@ if (config.isDebugMode()) {
     String truncatedResponse = responseBody.length() > 2000 
         ? responseBody.substring(0, 2000) + "... [truncated]" 
         : responseBody;
-    LogUtil.info("[Phabricator DEBUG] Response: " + truncatedResponse);
+    LogUtil.debug("[Phabricator DEBUG] Response: " + truncatedResponse);
+}
+
+// Token masking helper
+private String maskToken(String formBody) {
+    return formBody.replaceAll("\"token\":\"[^\"]+\"", "\"token\":\"***MASKED***\"");
 }
 ```
 
