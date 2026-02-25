@@ -204,6 +204,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         
         // Subtype - preserve existing or default to "bug"
         String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
+            String humanReadableId = "T" + id;
         String subtypeToUse = "bug";
         try {
             Map<String, Object> currentTask = phabricatorClient.getTask(id);
@@ -269,6 +270,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         try {
             // Use numeric ID directly with maniphest.edit
             String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
+            String humanReadableId = "T" + id;
             
             // Close the issue instead of deleting (Phabricator doesn't support hard delete)
             List<Map<String, Object>> transactions = new ArrayList<>();
@@ -278,7 +280,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
             ));
             transactions.add(Map.of(
                 "type", "comment",
-                "value", "Closed by MeterSphere"
+                "value", "Closed by MeterSphere (" + humanReadableId + ")"
             ));
             
             phabricatorClient.editTask(id, transactions);
@@ -355,6 +357,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
             try {
                 // Strip "T" prefix if present
                 String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
+            String humanReadableId = "T" + id;
                 
                 Map<String, Object> constraints = new HashMap<>();
                 constraints.put("ids", List.of(Integer.parseInt(id)));

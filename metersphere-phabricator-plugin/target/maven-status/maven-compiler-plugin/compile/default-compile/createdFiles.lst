@@ -1,4 +1,5 @@
 io/metersphere/platform/utils/PhabricatorMarkupUtils.class
+io/metersphere/platform/impl/PhabricatorPlatform.class
 io/metersphere/platform/domain/PhabricatorProjectConfig.class
 io/metersphere/platform/domain/PhabricatorConfig.class
 io/metersphere/platform/client/PhabricatorClient.class
