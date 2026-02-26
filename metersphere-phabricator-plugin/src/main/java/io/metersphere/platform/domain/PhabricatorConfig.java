@@ -7,7 +7,8 @@ public class PhabricatorConfig {
     private String url;
     private String apiToken;
     private String user;
-    private boolean debugMode = false;
+    private boolean debugMode = true;
+    private String msUrl;
 
     public String getUrl() {
         return url;
@@ -39,5 +40,13 @@ public class PhabricatorConfig {
 
     public void setDebugMode(boolean debugMode) {
         this.debugMode = debugMode;
+    }
+
+    public String getMsUrl() {
+        return msUrl;
+    }
+
+    public void setMsUrl(String msUrl) {
+        this.msUrl = msUrl;
     }
 }

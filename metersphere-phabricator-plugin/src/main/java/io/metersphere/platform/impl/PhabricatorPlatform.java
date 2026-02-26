@@ -129,6 +129,14 @@ public class PhabricatorPlatform extends AbstractPlatform {
                 "value", List.of(projectConfig.getProjectPHID())
             ));
         }
+
+        // Priority - map from severity custom field
+        String severity = getSeverityFromRequest(request);
+        String priority = phabricatorClient.mapSeverityToPriority(severity);
+        transactions.add(Map.of(
+            "type", "priority",
+            "value", priority
+        ));
         
         try {
             Map<String, Object> result = phabricatorClient.editTask(null, transactions);
@@ -147,6 +155,24 @@ public class PhabricatorPlatform extends AbstractPlatform {
                             if (id != null) {
                                 // Store as numeric ID directly (matches maniphest.edit expectation)
                                 request.setPlatformId(id); // Store as numeric ID directly
+                                
+                                // Add MS URL as first comment
+                                try {
+                                    PhabricatorConfig config = getIntegrationConfig();
+                                    String msUrl = config != null ? config.getMsUrl() : null;
+                                    if (StringUtils.isNotBlank(msUrl) && id != null) {
+                                        String comment = "[[" + msUrl + "/track/issue/T" + id + " | View in MeterSphere]]";
+                                        List<Map<String, Object>> commentTransactions = new ArrayList<>();
+                                        commentTransactions.add(Map.of(
+                                            "type", "comment",
+                                            "value", comment
+                                        ));
+                                        phabricatorClient.editTask(id, commentTransactions);
+                                    }
+                                } catch (Exception e) {
+                                    // Don't fail the main task if comment fails
+                                    LogUtil.warn("Failed to add MS URL comment: " + e.getMessage());
+                                }
                             }
                         }
                     }
@@ -505,5 +531,30 @@ public class PhabricatorPlatform extends AbstractPlatform {
 
     @Override
     public void syncIssuesAttachment(SyncIssuesAttachmentRequest request) {
+    }
+
+    /**
+     * Get severity from request custom fields
+     * @param request Platform issues update request
+     * @return severity value or null
+     */
+    private String getSeverityFromRequest(PlatformIssuesUpdateRequest request) {
+        if (request == null) {
+            return null;
+        }
+        List<PlatformCustomFieldItemDTO> customFields = request.getCustomFieldList();
+        if (customFields == null || customFields.isEmpty()) {
+            return null;
+        }
+        for (PlatformCustomFieldItemDTO field : customFields) {
+            String fieldName = field.getName();
+            if (fieldName != null && fieldName.toLowerCase().contains("severity")) {
+                Object value = field.getValue();
+                if (value != null) {
+                    return value.toString();
+                }
+            }
+        }
+        return null;
     }
 }

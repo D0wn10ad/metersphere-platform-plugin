@@ -161,6 +161,11 @@ public class PhabricatorClient {
         }
         String lowerMessage = message.toLowerCase();
         
+        // Phabricator API errors (validation errors, logic errors) are not retryable
+        if (lowerMessage.contains("phabricator api error")) {
+            return false;
+        }
+        
         // HTTP errors (4xx, 5xx) are not retryable - they won't fix themselves
         if (lowerMessage.contains("http error")) {
             return false;
@@ -399,15 +404,20 @@ public class PhabricatorClient {
         );
     }
 
-    public List<Map<String, Object>> getAvailablePriorities() {
-        return List.of(
-            Map.of("value", "100", "name", "Unbreak Now!"),
-            Map.of("value", "90", "name", "Needs Triage"),
-            Map.of("value", "80", "name", "High"),
-            Map.of("value", "50", "name", "Normal"),
-            Map.of("value", "25", "name", "Low"),
-            Map.of("value", "0", "name", "Wishlist")
-        );
+
+    /**
+     * Map MeterSphere severity to Phabricator priority keyword
+     * @param msSeverity MeterSphere severity (e.g., P0, P1, P2, P3, Critical, High, Medium, Low)
+     * @return Phabricator priority keyword
+     */
+    public String mapSeverityToPriority(String msSeverity) {
+        if (msSeverity == null) return "normal";
+        String upper = msSeverity.toUpperCase();
+        if (upper.startsWith("P0") || upper.contains("CRITICAL")) return "triage";
+        if (upper.startsWith("P1") || upper.contains("HIGH")) return "high";
+        if (upper.startsWith("P2") || upper.contains("MEDIUM")) return "normal";
+        if (upper.startsWith("P3") || upper.contains("LOW")) return "low";
+        return "wish";
     }
 
     /**

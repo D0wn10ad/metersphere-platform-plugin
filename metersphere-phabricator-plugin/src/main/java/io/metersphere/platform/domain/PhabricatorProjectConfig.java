@@ -12,7 +12,7 @@ public class PhabricatorProjectConfig {
     private List<String> closureStatuses;
     private boolean syncClosedIssues = true;
     private List<String> allowedSubtypes;
-    private String defaultSubtype = "task";
+    private String defaultSubtype = "bug";
 
     public String getProjectPHID() {
         return projectPHID;

@@ -74,6 +74,33 @@ package io.metersphere.platform.utils;       // Utilities
 3. `io.metersphere.*` (internal SDKs)
 4. Static imports
 
+## Agent Behavior Guidelines
+
+### Diff Display
+When showing code changes or git diffs, present them in **blocks** rather than line-by-line for better reviewability:
+- Use git diff with `--unified=3` or similar for context
+- Show the entire changed function/method block
+- Use code fences with language specifiers
+
+```diff
+```java
+// Before
+public String method() {
+    return "old";
+}
+
+// After (change shown in block)
+public String method() {
+    return "new";
+}
+```
+
+### Code Changes
+- Always show before AND after when modifying code
+- Use semantic line breaks in diffs
+- Avoid showing trivial single-line changes in isolation
+```
+
 ### Code Patterns
 
 #### Platform Meta Info (Frontend JSON)
