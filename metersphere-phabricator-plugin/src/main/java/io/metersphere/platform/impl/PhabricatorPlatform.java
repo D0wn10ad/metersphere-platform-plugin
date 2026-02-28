@@ -58,7 +58,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
             }
             
             Map<String, Object> constraints = new HashMap<>();
-            constraints.put("projectPHIDs", List.of(projectConfig.getProjectPHID()));
+            constraints.put("projects", List.of(projectConfig.getProjectPHID()));
             
             List<Map<String, Object>> results = phabricatorClient.searchTasks(constraints);
             
@@ -91,6 +91,15 @@ public class PhabricatorPlatform extends AbstractPlatform {
         setConfig();
         
         PhabricatorProjectConfig projectConfig = getProjectConfig(request.getProjectConfig());
+        
+        // Debug logging when debug mode is enabled
+        PhabricatorConfig integrationConfig = getIntegrationConfig();
+        if (integrationConfig != null && integrationConfig.isDebugMode()) {
+            LogUtil.info("[Phabricator DEBUG] request.getId(): " + request.getId());
+            LogUtil.info("[Phabricator DEBUG] getIntegrationConfig(): " + JSON.toJSONString(integrationConfig));
+            LogUtil.info("[Phabricator DEBUG] getProjectConfig(): " + JSON.toJSONString(projectConfig));
+            LogUtil.info("[Phabricator DEBUG] getCustomFieldList(): " + JSON.toJSONString(request.getCustomFieldList()));
+        }
         PhabricatorMarkupUtils markupUtils = new PhabricatorMarkupUtils(phabricatorClient);
         
         List<Map<String, Object>> transactions = new ArrayList<>();
@@ -161,7 +170,8 @@ public class PhabricatorPlatform extends AbstractPlatform {
                                     PhabricatorConfig config = getIntegrationConfig();
                                     String msUrl = config != null ? config.getMsUrl() : null;
                                     if (StringUtils.isNotBlank(msUrl) && id != null) {
-                                        String comment = "[[" + msUrl + "/track/issue/T" + id + " | View in MeterSphere]]";
+                                        String msInternalId = request.getId();
+                                        String comment = "[[" + msUrl + "/#/track/issue?id=" + msInternalId + " | View in MeterSphere]]";
                                         List<Map<String, Object>> commentTransactions = new ArrayList<>();
                                         commentTransactions.add(Map.of(
                                             "type", "comment",

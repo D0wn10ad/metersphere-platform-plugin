@@ -71,7 +71,11 @@ public class PhabricatorClient {
             return null;
         }
 
-        String url = config.getUrl() + "/api/" + method;
+        String baseUrl = config.getUrl();
+        if (baseUrl != null && baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        String url = baseUrl + "/api/" + method;
         Exception lastException = null;
 
         for (int attempt = 0; attempt <= maxRetries; attempt++) {
@@ -86,14 +90,15 @@ public class PhabricatorClient {
                 String formBody = "params=" + jsonParams + "&output=json";
 
                 if (config.isDebugMode()) {
-                    LogUtil.debug("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
-                    LogUtil.debug("[Phabricator DEBUG] URL: " + url);
-                    LogUtil.debug("[Phabricator DEBUG] Request: " + maskToken(formBody));
+                    LogUtil.info("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
+                    LogUtil.info("[Phabricator DEBUG] URL: " + url);
+                    LogUtil.info("[Phabricator DEBUG] Request: " + maskToken(formBody));
                 }
 
                 HttpPost httpPost = new HttpPost(url);
                 httpPost.setHeader("Content-Type", "application/x-www-form-urlencoded");
-                httpPost.setEntity(new StringEntity(formBody, ContentType.APPLICATION_FORM_URLENCODED));
+                httpPost.setEntity(new StringEntity(formBody, 
+                    ContentType.create("application/x-www-form-urlencoded", StandardCharsets.UTF_8)));
 
                 try (org.apache.hc.core5.http.ClassicHttpResponse response = httpClient.execute(httpPost)) {
                     int statusCode = response.getCode();
@@ -107,7 +112,7 @@ public class PhabricatorClient {
                         String truncatedResponse = responseBody.length() > 2000 
                             ? responseBody.substring(0, 2000) + "... [truncated]" 
                             : responseBody;
-                        LogUtil.debug("[Phabricator DEBUG] Response: " + truncatedResponse);
+                        LogUtil.info("[Phabricator DEBUG] Response: " + truncatedResponse);
                     }
 
                     if (responseBody == null || responseBody.isBlank()) {
@@ -260,7 +265,7 @@ public class PhabricatorClient {
                 pageCount++;
                 
                 if (config.isDebugMode()) {
-                    LogUtil.debug("[Phabricator DEBUG] " + method + " page " + pageCount + ": " + pageData.size() + " results, total: " + allResults.size());
+                    LogUtil.info("[Phabricator DEBUG] " + method + " page " + pageCount + ": " + pageData.size() + " results, total: " + allResults.size());
                 }
             } else {
                 break;
@@ -277,7 +282,7 @@ public class PhabricatorClient {
         } while (afterCursor != null && !afterCursor.isEmpty());
         
         if (config.isDebugMode()) {
-            LogUtil.debug("[Phabricator DEBUG] " + method + " completed: " + allResults.size() + " total results from " + pageCount + " pages");
+            LogUtil.info("[Phabricator DEBUG] " + method + " completed: " + allResults.size() + " total results from " + pageCount + " pages");
         }
         
         return allResults;
@@ -285,11 +290,16 @@ public class PhabricatorClient {
 
     @SuppressWarnings("unchecked")
     public List<Map<String, Object>> searchTasks(Map<String, Object> constraints) {
+        return searchTasks(constraints, 5000);
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> searchTasks(Map<String, Object> constraints, int limit) {
         Map<String, Object> params = new HashMap<>();
         params.put("constraints", constraints);
         params.put("attachments", Map.of("projects", true));
 
-        return searchWithPagination("maniphest.search", params);
+        return searchWithPagination("maniphest.search", params, limit);
     }
 
     @SuppressWarnings("unchecked")
@@ -330,6 +340,32 @@ public class PhabricatorClient {
         List<Map<String, Object>> results = searchProjects(constraints);
         return results != null && !results.isEmpty();
     }
+
+    /**
+     * Get project name by PHID
+     * @param projectPHID The project PHID (e.g., "PHID-PROJ-XXXXX")
+     * @return Project name or null if not found
+     */
+    @SuppressWarnings("unchecked")
+    public String getProjectNameByPHID(String projectPHID) {
+        if (StringUtils.isBlank(projectPHID)) {
+            return null;
+        }
+        Map<String, Object> constraints = new HashMap<>();
+        constraints.put("phids", List.of(projectPHID));
+        List<Map<String, Object>> results = searchProjects(constraints);
+        if (results != null && !results.isEmpty()) {
+            Map<String, Object> project = results.get(0);
+            Object fieldsObj = project.get("fields");
+            if (fieldsObj instanceof Map) {
+                Map<String, Object> fields = (Map<String, Object>) fieldsObj;
+                Object nameObj = fields.get("name");
+                return nameObj != null ? nameObj.toString() : null;
+            }
+        }
+        return null;
+    }
+
 
     public Map<String, Object> getTask(String taskId) {
         Map<String, Object> constraints = new HashMap<>();

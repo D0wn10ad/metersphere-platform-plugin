@@ -204,6 +204,16 @@ LogUtil.error(e);           // Log exception with stack trace
 LogUtil.info("message");    // Log info
 ```
 
+**Important:** Use `LogUtil.info()` instead of `LogUtil.debug()` - MeterSphere's logging framework does not handle DEBUG level well. All debug information should be logged at INFO level.
+```
+```java
+import io.metersphere.plugin.utils.LogUtil;
+
+// Usage
+LogUtil.error(e);           // Log exception with stack trace
+LogUtil.info("message");    // Log info
+```
+
 ### JSON Handling
 ```java
 import io.metersphere.plugin.utils.JSON;
@@ -523,13 +533,17 @@ Search for Maniphest tasks.
 - `constraints` - Search constraints
 - `attachments` - Optional attachments (e.g., `{"projects": true}`)
 
+> **Note:** Phabricator has two different search APIs with different `projects` constraint expectations:
+> - `maniphest.search` - `projects` expects **PHIDs**
+> - `project.search` - `projects` expects **project names**
+
 **Common Constraints:**
 | Key | Description | Value Type |
 |-----|-------------|------------|
 | `ids` | Filter by numeric IDs | list of integers |
 | `phids` | Filter by PHIDs | list of PHIDs |
 | `status` | Filter by status | string |
-| `projectPHIDs` | Filter by project | list of PHIDs |
+| `projects` | Filter by project (maniphest.search uses PHIDs) | list of PHIDs |
 
 **Response:**
 ```json

@@ -188,4 +188,85 @@ public class PhabricatorMarkupUtils {
         
         return remarkup;
     }
+    /**
+     * Extract MS markdown image URLs from content
+     * MS format: ![[/resource/md/get?fileName=xxx.png|Filename.png]]
+     * @param content The content to search
+     * @return List of MS image info objects with url and filename
+     */
+    public List<MsImageInfo> extractMsMarkdownImages(String content) {
+        List<MsImageInfo> images = new ArrayList<>();
+        if (content == null || content.isBlank()) {
+            return images;
+        }
+
+        // Pattern: ![[URL|Filename]]
+        Pattern pattern = Pattern.compile("!\\[\\[([^\\]]+)\\|([^\\]]+)\\]");
+        Matcher matcher = pattern.matcher(content);
+        while (matcher.find()) {
+            String url = matcher.group(1);
+            String filename = matcher.group(2);
+            if (url != null && url.contains("/resource/md/get")) {
+                MsImageInfo info = new MsImageInfo();
+                info.setUrl(url);
+                info.setFilename(filename);
+                info.setMatch(matcher.group(0));
+                images.add(info);
+            }
+        }
+        return images;
+    }
+
+    /**
+     * Simple class to hold MS image information
+     */
+    public static class MsImageInfo {
+        private String url;
+        private String filename;
+        private String match;
+        private String phabricatorPhid;
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
+
+        public String getFilename() {
+            return filename;
+        }
+
+        public void setFilename(String filename) {
+            this.filename = filename;
+        }
+
+        public String getMatch() {
+            return match;
+        }
+
+        public void setMatch(String match) {
+            this.match = match;
+        }
+
+        public String getPhabricatorPhid() {
+            return phabricatorPhid;
+        }
+
+        public void setPhabricatorPhid(String phabricatorPhid) {
+            this.phabricatorPhid = phabricatorPhid;
+        }
+
+        /**
+         * Get Phabricator image syntax: {img:phid}
+         */
+        public String toPhabricatorSyntax() {
+            if (phabricatorPhid != null && !phabricatorPhid.isBlank()) {
+                return "{img:" + phabricatorPhid + "}";
+            }
+            // Fallback: keep original if no PHID
+            return match;
+        }
+    }
 }
