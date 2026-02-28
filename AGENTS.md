@@ -344,6 +344,71 @@ Extend `AbstractPlatform` and implement required methods from `Platform` interfa
 - `validateProjectConfig()`
 - `validateUserConfig()`
 
+### PlatformIssuesUpdateRequest Available Fields
+
+When implementing `addIssue()`, `updateIssue()`, or `syncIssues()`, the `PlatformIssuesUpdateRequest` object contains the following fields:
+
+#### Built-in Fields (from IssuesWithBLOBs)
+
+| Field | Method | Description | Example |
+|-------|--------|-------------|---------|
+| `id` | `request.getId()` | MS internal UUID | `88b7a6d9-d50b-49ee-958f-01973957be64` |
+| `title` | `request.getTitle()` | Issue title/summary | `Fix login bug` |
+| `description` | `request.getDescription()` | Issue description (markdown) | `The login fails when...` |
+| `platformId` | `request.getPlatformId()` | Platform ID (e.g., T123) | `T1395` |
+| `platformStatus` | `request.getPlatformStatus()` | Platform status | `open`, `resolved` |
+
+#### Extended Fields (from PlatformIssuesDTO)
+
+| Field | Method | Description |
+|-------|--------|-------------|
+| `customFieldList` | `request.getCustomFieldList()` | List of custom fields (including severity) |
+| `attachments` | `request.getAttachments()` | List of attachments |
+
+#### Request-Specific Fields (from PlatformIssuesUpdateRequest)
+
+| Field | Method | Description |
+|-------|--------|-------------|
+| `projectConfig` | `request.getProjectConfig()` | Project config JSON (e.g., `{"projectPHID": "PHID-XXX"}`) |
+| `userPlatformUserConfig` | `request.getUserPlatformUserConfig()` | User personal config JSON |
+| `transitions` | `request.getTransitions()` | Target status for workflow transition (PlatformStatusDTO with value/label) |
+| `msAttachmentNames` | `request.getMsAttachmentNames()` | Set of attachment file names |
+
+#### For syncIssues() Operations
+
+| Field | Method | Description |
+|-------|--------|-------------|
+| `issues` | `request.getIssues()` | List of PlatformIssuesDTO to sync |
+| `optionMethod` | `request.getOptionMethod()` | Operation method name |
+| `query` | `request.getQuery()` | Search query string |
+
+#### Usage Example
+
+```java
+public IssuesWithBLOBs addIssue(PlatformIssuesUpdateRequest request) {
+    // Get built-in fields
+    String id = request.getId();           // MS UUID
+    String title = request.getTitle();      // Issue title
+    String description = request.getDescription();  // Markdown description
+    
+    // Get project config
+    PhabricatorProjectConfig projectConfig = getProjectConfig(request.getProjectConfig());
+    String projectPHID = projectConfig.getProjectPHID();
+    
+    // Get custom fields (including severity)
+    List<PlatformCustomFieldItemDTO> customFields = request.getCustomFieldList();
+    for (PlatformCustomFieldItemDTO field : customFields) {
+        if (field.getName().toLowerCase().contains("severity")) {
+            String severity = field.getValue().toString();
+        }
+    }
+    
+    // Handle status transitions (when updating)
+    if (request.getTransitions() != null) {
+        String targetStatus = request.getTransitions().getValue();
+    }
+}
+```
 ### Testing
 Place tests in `src/test/java/io/metersphere/`:
 ```java
@@ -504,7 +569,9 @@ Create or update Maniphest tasks.
 | `projects.remove` | Remove project tags | list of PHIDs |
 | `projects.set` | Set project tags (overwrite) | list of PHIDs |
 | `owner` | Assign owner | PHID |
-| `comment` | Add comment | string |
+|| `comment` | Add comment | string |
+| `custom.igus.env` | Custom field: Defect environment (缺陷环境) | string |
+| `custom.igus.related-to` | Custom field: Related MS issue URL | string |
 
 **Response:**
 ```json

@@ -92,11 +92,22 @@ public class PhabricatorPlatform extends AbstractPlatform {
         
         PhabricatorProjectConfig projectConfig = getProjectConfig(request.getProjectConfig());
         
-        // Debug logging when debug mode is enabled
+        // Generate UUID for new issues if not present
+        if (StringUtils.isBlank(request.getId())) {
+            request.setId(UUID.randomUUID().toString());
+        }
+
         PhabricatorConfig integrationConfig = getIntegrationConfig();
+
+        String msUrl = integrationConfig != null ? integrationConfig.getMsUrl() : null;
+        if (msUrl != null && msUrl.endsWith("/")) {
+            msUrl = msUrl.substring(0, msUrl.length() - 1);
+        }
+
+        // Debug logging when debug mode is enabled
         if (integrationConfig != null && integrationConfig.isDebugMode()) {
             LogUtil.info("[Phabricator DEBUG] request.getId(): " + request.getId());
-            LogUtil.info("[Phabricator DEBUG] getIntegrationConfig(): " + JSON.toJSONString(integrationConfig));
+            LogUtil.info("[Phabricator DEBUG] getIntegrationConfig(): " + JSON.toJSONString(integrationConfig).replaceAll("\"apiToken\":\"[^\"]+\"", "\"apiToken\":\"***MASKED***\""));
             LogUtil.info("[Phabricator DEBUG] getProjectConfig(): " + JSON.toJSONString(projectConfig));
             LogUtil.info("[Phabricator DEBUG] getCustomFieldList(): " + JSON.toJSONString(request.getCustomFieldList()));
         }
@@ -146,7 +157,16 @@ public class PhabricatorPlatform extends AbstractPlatform {
             "type", "priority",
             "value", priority
         ));
-        
+
+        // Custom field: MS URL -> custom.igus.related-to
+        if (StringUtils.isNotBlank(msUrl)) {
+            String relatedToUrl = msUrl + "/#/track/issue?id=" + request.getId();
+            transactions.add(Map.of(
+                "type", "custom.igus.related-to",
+                "value", relatedToUrl
+            ));
+        }        
+
         try {
             Map<String, Object> result = phabricatorClient.editTask(null, transactions);
             
@@ -167,8 +187,6 @@ public class PhabricatorPlatform extends AbstractPlatform {
                                 
                                 // Add MS URL as first comment
                                 try {
-                                    PhabricatorConfig config = getIntegrationConfig();
-                                    String msUrl = config != null ? config.getMsUrl() : null;
                                     if (StringUtils.isNotBlank(msUrl) && id != null) {
                                         String msInternalId = request.getId();
                                         String comment = "[[" + msUrl + "/#/track/issue?id=" + msInternalId + " | View in MeterSphere]]";
