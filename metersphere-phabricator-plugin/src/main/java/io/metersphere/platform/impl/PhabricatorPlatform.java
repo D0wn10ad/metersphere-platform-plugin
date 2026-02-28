@@ -166,6 +166,25 @@ public class PhabricatorPlatform extends AbstractPlatform {
                 "value", relatedToUrl
             ));
         }        
+        
+        // Custom field: 发现环境 -> custom.igus.env
+        List<PlatformCustomFieldItemDTO> customFields = request.getCustomFieldList();
+        if (customFields != null) {
+            for (PlatformCustomFieldItemDTO field : customFields) {
+                String fieldName = field.getName();
+                if (fieldName != null && fieldName.contains("发现环境")) {
+                    Object envValue = field.getValue();
+                    if (envValue != null) {
+                        transactions.add(Map.of(
+                            "type", "custom.igus.env",
+                            "value", envValue.toString()
+                        ));
+                    }
+                    break;
+                }
+            }
+        }
+
 
         try {
             Map<String, Object> result = phabricatorClient.editTask(null, transactions);
