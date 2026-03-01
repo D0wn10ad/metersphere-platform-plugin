@@ -11,6 +11,11 @@ import io.metersphere.plugin.utils.LogUtil;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Base64;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class PhabricatorPlatform extends AbstractPlatform {
 
@@ -125,7 +130,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         
         // Description (convert Markdown to Remarkup)
         if (StringUtils.isNotBlank(request.getDescription())) {
-            String remarkup = markupUtils.markdownToRemarkup(request.getDescription());
+            String remarkup = processInlineImages(request.getDescription());
             transactions.add(Map.of(
                 "type", "description",
                 "value", remarkup
@@ -259,7 +264,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         
         // Description (convert Markdown to Remarkup)
         if (StringUtils.isNotBlank(request.getDescription())) {
-            String remarkup = markupUtils.markdownToRemarkup(request.getDescription());
+            String remarkup = processInlineImages(request.getDescription());
             transactions.add(Map.of(
                 "type", "description",
                 "value", remarkup
@@ -603,5 +608,102 @@ public class PhabricatorPlatform extends AbstractPlatform {
             }
         }
         return null;
+    }
+
+    /**
+     * Process inline images in MS description: upload to Phabricator and replace with {guid}
+     * MS format: ![[/resource/md/get?fileName=xxx.png|Filename.png]]
+     * Target format: {guid-from-file-upload}
+     */
+    private String processInlineImages(String description) {
+        if (StringUtils.isBlank(description)) {
+            return description;
+        }
+
+        // Pattern to match MS inline images: ![[URL|Filename]]
+        Pattern pattern = Pattern.compile("!\\\\[\\\\[([^\\\\]]+)\\|([^\\\\]]+)\\]\\\\]");
+        Matcher matcher = pattern.matcher(description);
+
+        if (!matcher.find()) {
+            // No images found, just convert markdown
+            return new PhabricatorMarkupUtils(phabricatorClient).markdownToRemarkup(description);
+        }
+
+        // Reset matcher
+        matcher = pattern.matcher(description);
+        String result = description;
+
+        while (matcher.find()) {
+            String imageUrl = matcher.group(1);
+            String filename = matcher.group(2);
+            String match = matcher.group(0);
+
+            // Only process MS resource URLs
+            if (imageUrl == null || !imageUrl.contains("/resource/md/get")) {
+                continue;
+            }
+
+            try {
+                // Download image
+                String base64Data = downloadImageAsBase64(imageUrl);
+                if (base64Data == null) {
+                    LogUtil.warn("Failed to download image: " + imageUrl);
+                    continue;
+                }
+
+                // Upload to Phabricator
+                Map<String, Object> uploadResult = phabricatorClient.uploadFile(filename, base64Data);
+                if (uploadResult == null) {
+                    LogUtil.warn("Failed to upload image: " + filename);
+                    continue;
+                }
+
+                // Get guid from response
+                String guid = extractGuid(uploadResult);
+                if (guid == null) {
+                    LogUtil.warn("No guid returned for image: " + filename);
+                    continue;
+                }
+
+                // Replace MS syntax with {guid}
+                result = result.replace(match, "{" + guid + "}");
+                LogUtil.info("Uploaded image: " + filename + " -> {" + guid + "}");
+
+            } catch (Exception e) {
+                LogUtil.error("Failed to process image: " + filename, e);
+                // Keep original if upload fails
+            }
+        }
+
+        // Convert markdown to remarkup (images already replaced with {guid})
+        return new PhabricatorMarkupUtils(phabricatorClient).markdownToRemarkup(result);
+    }
+
+    /**
+     * Download image from URL and return as base64
+     */
+    private String downloadImageAsBase64(String imageUrl) {
+        try {
+            URL url = new URL(imageUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(10000);
+            conn.setReadTimeout(30000);
+
+            byte[] imageData = conn.getInputStream().readAllBytes();
+            return Base64.getEncoder().encodeToString(imageData);
+        } catch (Exception e) {
+            LogUtil.error("Failed to download image: " + imageUrl, e);
+            return null;
+        }
+    }
+
+    /**
+     * Extract guid from file.upload response
+     */
+    private String extractGuid(Map<String, Object> result) {
+        if (result == null) return null;
+        Object guid = result.get("guid");
+        return guid != null ? guid.toString() : null;
     }
 }
