@@ -16,6 +16,7 @@ import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -87,7 +88,7 @@ public class PhabricatorClient {
                 apiParams.put("__conduit__", conduitParams);
                 
                 String jsonParams = JSON.toJSONString(apiParams);
-                String formBody = "params=" + jsonParams + "&output=json";
+                String formBody = "params=" + URLEncoder.encode(jsonParams, StandardCharsets.UTF_8) + "&output=json";
 
                 if (config.isDebugMode()) {
                     LogUtil.info("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
