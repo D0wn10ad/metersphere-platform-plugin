@@ -223,6 +223,33 @@ MyObject obj = JSON.parseObject(jsonString, MyObject.class);
 
 // To JSON
 String json = JSON.toJSONString(obj);
+TS|```
+VQ|
+SQ|### MS Inline Image Regex
+TZ|
+NJ|MS inline images use format: `[[/resource/md/get?fileName=xxx.png|Filename.png]]
+NQ|
+HB|**Recommended: Use string splitting instead of complex regex groups**
+
+```java
+// Step 1: Simple pattern to find ![[...|...]]
+                Pattern fullPattern = Pattern.compile("!\[\[[^\]]+\]\]");
+Matcher matcher = fullPattern.matcher(description);
+
+while (matcher.find()) {
+    String match = matcher.group();  // e.g., [[/resource/...|Filename.png]]
+    
+    // Step 2: Extract URL and filename by splitting on |
+    String inner = match.substring(2, match.length() - 2);
+    int pipeIndex = inner.lastIndexOf('|');
+    
+    String imageUrl = inner.substring(0, pipeIndex);
+    String filename = inner.substring(pipeIndex + 1);
+}
+```
+
+This approach avoids complex bracket escaping issues.
+QZ|### Internationalization (i18n)
 ```
 
 ### MS Inline Image Regex
