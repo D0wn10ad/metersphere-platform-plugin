@@ -225,6 +225,59 @@ MyObject obj = JSON.parseObject(jsonString, MyObject.class);
 String json = JSON.toJSONString(obj);
 ```
 
+### MS Inline Image Regex
+
+MS inline images use format: `[[/resource/md/get?fileName=xxx.png|Filename.png]]`
+
+Use this pattern in Java:
+```java
+        Pattern pattern = Pattern.compile("!\\[\\[([^\\]]+)\|([^\\]]+)\]\\]");
+```
+### Internationalization (i18n)
+
+Plugins do NOT contain translation files. They only provide **i18n keys** in `frontend.json`. The actual translation strings are in the main MeterSphere frontend project.
+
+#### Translation File Locations
+
+| File | Description |
+|------|-------------|
+| `frontend/src/i18n/zh-CN.js` | Chinese translations |
+| `frontend/src/i18n/en-US.js` | English translations |
+
+#### How i18n Works
+
+1. Plugin's `frontend.json` provides i18n **keys** (not translations):
+```json
+{
+  "name": "url",
+  "type": "input",
+  "i18n": true,
+  "label": "organization.integration.phabricator_url"
+}
+```
+
+2. Main MS Frontend has the translations:
+```javascript
+// frontend/src/i18n/zh-CN.js
+organization: {
+  integration: {
+    phabricator_url: 'Phabricator 地址'
+  }
+}
+```
+
+3. At runtime, frontend uses `$t('key')` to look up translations
+
+#### Adding Plugin Translations
+
+To add translations for a new plugin:
+1. Use `i18n: true` and meaningful key names in `frontend.json`
+2. Submit translations to MeterSphere team to add to:
+   - `frontend/src/i18n/zh-CN.js` (Chinese)
+   - `frontend/src/i18n/en-US.js` (English)
+
+---
+
 ### HTTP Client
 Use Spring's `RestTemplate` or `HttpClient` for API calls. See `BaseClient` and existing implementations.
 

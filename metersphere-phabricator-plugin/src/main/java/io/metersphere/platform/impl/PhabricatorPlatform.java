@@ -620,64 +620,65 @@ public class PhabricatorPlatform extends AbstractPlatform {
             return description;
         }
 
-        // Pattern to match MS inline images: ![[URL|Filename]]
-        Pattern pattern = Pattern.compile("!\\\\[\\\\[([^\\\\]]+)\\|([^\\\\]]+)\\]\\\\]");
-        Matcher matcher = pattern.matcher(description);
+        // Simple pattern to find ![[...|...]]
+        Pattern fullPattern = Pattern.compile("!\\[\\[[^\\]]+\\]\\]");
+        Matcher matcher = fullPattern.matcher(description);
 
         if (!matcher.find()) {
-            // No images found, just convert markdown
             return new PhabricatorMarkupUtils(phabricatorClient).markdownToRemarkup(description);
         }
 
-        // Reset matcher
-        matcher = pattern.matcher(description);
+        matcher = fullPattern.matcher(description);
         String result = description;
 
         while (matcher.find()) {
-            String imageUrl = matcher.group(1);
-            String filename = matcher.group(2);
-            String match = matcher.group(0);
+            String match = matcher.group();
+            
+            // Extract URL and filename by splitting on |
+            String inner = match.substring(2, match.length() - 2);
+            int pipeIndex = inner.lastIndexOf('|');
+            
+            if (pipeIndex <= 0) {
+                continue;
+            }
+            
+            String imageUrl = inner.substring(0, pipeIndex);
+            String filename = inner.substring(pipeIndex + 1);
 
-            // Only process MS resource URLs
             if (imageUrl == null || !imageUrl.contains("/resource/md/get")) {
                 continue;
             }
 
             try {
-                // Download image
                 String base64Data = downloadImageAsBase64(imageUrl);
                 if (base64Data == null) {
                     LogUtil.warn("Failed to download image: " + imageUrl);
                     continue;
                 }
 
-                // Upload to Phabricator
                 Map<String, Object> uploadResult = phabricatorClient.uploadFile(filename, base64Data);
                 if (uploadResult == null) {
                     LogUtil.warn("Failed to upload image: " + filename);
                     continue;
                 }
 
-                // Get guid from response
                 String guid = extractGuid(uploadResult);
                 if (guid == null) {
                     LogUtil.warn("No guid returned for image: " + filename);
                     continue;
                 }
 
-                // Replace MS syntax with {guid}
                 result = result.replace(match, "{" + guid + "}");
                 LogUtil.info("Uploaded image: " + filename + " -> {" + guid + "}");
 
             } catch (Exception e) {
                 LogUtil.error("Failed to process image: " + filename, e);
-                // Keep original if upload fails
             }
         }
 
-        // Convert markdown to remarkup (images already replaced with {guid})
         return new PhabricatorMarkupUtils(phabricatorClient).markdownToRemarkup(result);
     }
+
 
     /**
      * Download image from URL and return as base64
