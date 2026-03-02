@@ -77,7 +77,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
                         if (nameObj != null) {
                             DemandDTO demand = new DemandDTO();
                             demand.setId(id != null ? "T" + id : null);
-                            demand.setName(nameObj.toString());
+                            demand.setName("T" + id + " " + nameObj.toString());
                             demand.setPlatform(PhabricatorPlatformMetaInfo.KEY);
                             demands.add(demand);
                         }
@@ -628,11 +628,13 @@ public class PhabricatorPlatform extends AbstractPlatform {
             return new PhabricatorMarkupUtils(phabricatorClient).markdownToRemarkup(description);
         }
 
+        LogUtil.info("[processInlineImages] Images found, processing...");
         matcher = fullPattern.matcher(description);
         String result = description;
 
         while (matcher.find()) {
             String match = matcher.group();
+            LogUtil.info("[processInlineImages] Found match: " + match);
             
             // Extract URL and filename by splitting on |
             String inner = match.substring(2, match.length() - 2);
@@ -644,12 +646,15 @@ public class PhabricatorPlatform extends AbstractPlatform {
             
             String imageUrl = inner.substring(0, pipeIndex);
             String filename = inner.substring(pipeIndex + 1);
+            LogUtil.info("[processInlineImages] URL: " + imageUrl + ", Filename: " + filename);
 
             if (imageUrl == null || !imageUrl.contains("/resource/md/get")) {
+                LogUtil.info("[processInlineImages] Not MS resource, skipping");
                 continue;
             }
 
             try {
+                LogUtil.info("[processInlineImages] Downloading image: " + imageUrl);
                 String base64Data = downloadImageAsBase64(imageUrl);
                 if (base64Data == null) {
                     LogUtil.warn("Failed to download image: " + imageUrl);
@@ -676,6 +681,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
             }
         }
 
+        LogUtil.info("[processInlineImages] Returning result: " + result.substring(0, Math.min(200, result.length())));
         return new PhabricatorMarkupUtils(phabricatorClient).markdownToRemarkup(result);
     }
 

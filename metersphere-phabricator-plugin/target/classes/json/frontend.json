@@ -30,6 +30,13 @@
         "i18n": true,
         "label": "organization.integration.phabricator_debug",
         "tips": "启用后将在日志中打印 API 请求和响应内容"
+      },
+      {
+        "name": "msUrl",
+        "type": "input",
+        "required": false,
+        "label": "organization.integration.phabricator_ms_url",
+        "placeholder": "https://metersphere.example.com"
       }
     ]
   },

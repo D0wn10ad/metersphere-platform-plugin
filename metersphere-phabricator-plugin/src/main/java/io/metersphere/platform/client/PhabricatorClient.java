@@ -466,7 +466,11 @@ public class PhabricatorClient {
         Map<String, Object> params = new HashMap<>();
         params.put("name", fileName);
         params.put("data_base64", data);
-        
+
+        if (config.isDebugMode()) {
+            LogUtil.info("[Phabricator DEBUG] file.upload invoked: " + params.toString());
+        }
+
         return callConduit("file.upload", params);
     }
 
