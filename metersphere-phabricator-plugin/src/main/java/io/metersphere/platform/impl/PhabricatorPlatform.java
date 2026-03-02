@@ -131,6 +131,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         // Description (convert Markdown to Remarkup)
         if (StringUtils.isNotBlank(request.getDescription())) {
             String remarkup = processInlineImages(request.getDescription());
+            LogUtil.info("[addIssue] Converted remarkup: " + remarkup.substring(0, Math.min(500, remarkup.length())));
             transactions.add(Map.of(
                 "type", "description",
                 "value", remarkup
@@ -265,6 +266,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         // Description (convert Markdown to Remarkup)
         if (StringUtils.isNotBlank(request.getDescription())) {
             String remarkup = processInlineImages(request.getDescription());
+            LogUtil.info("[addIssue] Converted remarkup: " + remarkup.substring(0, Math.min(500, remarkup.length())));
             transactions.add(Map.of(
                 "type", "description",
                 "value", remarkup
