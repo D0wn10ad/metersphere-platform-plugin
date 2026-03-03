@@ -9,6 +9,8 @@ import io.metersphere.plugin.exception.MSPluginException;
 import io.metersphere.plugin.utils.JSON;
 import io.metersphere.plugin.utils.LogUtil;
 import org.apache.commons.lang3.StringUtils;
+import java.io.File;
+import java.nio.file.Files;
 
 import java.util.*;
 import java.net.HttpURLConnection;
@@ -656,10 +658,15 @@ public class PhabricatorPlatform extends AbstractPlatform {
             }
 
             try {
-                LogUtil.info("[processInlineImages] Downloading image: " + imageUrl);
-                String base64Data = downloadImageAsBase64(imageUrl);
+                LogUtil.info("[processInlineImages] Reading image from local disk: " + filename);
+                File imageFile = getRealMdFile(filename);
+                if (!imageFile.exists()) {
+                    LogUtil.warn("Image file not found: " + imageFile.getAbsolutePath());
+                    continue;
+                }
+                String base64Data = encodeFileToBase64(imageFile);
                 if (base64Data == null) {
-                    LogUtil.warn("Failed to download image: " + imageUrl);
+                    LogUtil.warn("Failed to read image file: " + filename);
                     continue;
                 }
 
@@ -689,20 +696,14 @@ public class PhabricatorPlatform extends AbstractPlatform {
 
 
     /**
-     * Download image from URL and return as base64
+     * Read file and encode to base64
      */
-    private String downloadImageAsBase64(String imageUrl) {
+    private String encodeFileToBase64(File file) {
         try {
-            URL url = new URL(imageUrl);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(10000);
-            conn.setReadTimeout(30000);
-
-            byte[] imageData = conn.getInputStream().readAllBytes();
-            return Base64.getEncoder().encodeToString(imageData);
+            byte[] fileData = Files.readAllBytes(file.toPath());
+            return Base64.getEncoder().encodeToString(fileData);
         } catch (Exception e) {
-            LogUtil.error("Failed to download image: " + imageUrl, e);
+            LogUtil.error("Failed to read image file: " + file.getAbsolutePath(), e);
             return null;
         }
     }
