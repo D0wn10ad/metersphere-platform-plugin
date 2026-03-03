@@ -625,7 +625,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         }
 
         // Pattern to find standard Markdown images: ![alt](url)
-        Pattern fullPattern = Pattern.compile("!\\[([^\\]]+)\\]\\(([^)]+)\\");
+        Pattern fullPattern = Pattern.compile("!\\[([^\\]]+)\\]\\(([^)]+)\\)");
         Matcher matcher = fullPattern.matcher(description);
 
         if (!matcher.find()) {
