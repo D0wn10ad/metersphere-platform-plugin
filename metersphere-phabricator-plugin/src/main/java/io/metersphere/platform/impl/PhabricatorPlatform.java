@@ -690,7 +690,8 @@ public class PhabricatorPlatform extends AbstractPlatform {
                 // Query phid to get file info (includes GUID like "F29271")
                 Map<String, Object> phidParams = new HashMap<>();
                 phidParams.put("phids", Collections.singletonList(phid));
-                Map<String, Object> phidResult = phabricatorClient.callConduit("phid.query", phidParams);
+                Map<String, Object> phidResponse = phabricatorClient.callConduit("phid.query", phidParams);
+                Map<String, Object> phidResult = (Map<String, Object>) phidResponse.get("result");
                 
                 Map<String, Object> fileInfo = (Map<String, Object>) phidResult.get(phid);
                 if (fileInfo == null) {
