@@ -624,11 +624,12 @@ public class PhabricatorPlatform extends AbstractPlatform {
             return description;
         }
 
-        // Simple pattern to find ![[...|...]]
-        Pattern fullPattern = Pattern.compile("!\\[\\[[^\\]]+\\]\\]");
+        // Pattern to find standard Markdown images: ![alt](url)
+        Pattern fullPattern = Pattern.compile("!\\[([^\\]]+)\\]\\(([^)]+)\\");
         Matcher matcher = fullPattern.matcher(description);
 
         if (!matcher.find()) {
+            LogUtil.info("[processInlineImages] NO Images found in description, pattern not matched");
             return new PhabricatorMarkupUtils(phabricatorClient).markdownToRemarkup(description);
         }
 
@@ -638,18 +639,21 @@ public class PhabricatorPlatform extends AbstractPlatform {
 
         while (matcher.find()) {
             String match = matcher.group();
+            String altText = matcher.group(1);  // logo.png
+            String url = matcher.group(2);      // /resource/md/get?fileName=b849ad99.png
+
             LogUtil.info("[processInlineImages] Found match: " + match);
-            
-            // Extract URL and filename by splitting on |
-            String inner = match.substring(2, match.length() - 2);
-            int pipeIndex = inner.lastIndexOf('|');
-            
-            if (pipeIndex <= 0) {
+            LogUtil.info("[processInlineImages] Alt: " + altText + ", URL: " + url);
+
+            // Extract filename from URL parameter: ?fileName=b849ad99.png
+            int fileNameIndex = url.lastIndexOf("=");
+            if (fileNameIndex < 0) {
+                LogUtil.warn("[processInlineImages] Unable to extract filename from URL: " + url);
                 continue;
             }
-            
-            String imageUrl = inner.substring(0, pipeIndex);
-            String filename = inner.substring(pipeIndex + 1);
+
+            String filename = url.substring(fileNameIndex + 1);
+            String imageUrl = url;
             LogUtil.info("[processInlineImages] URL: " + imageUrl + ", Filename: " + filename);
 
             if (imageUrl == null || !imageUrl.contains("/resource/md/get")) {
