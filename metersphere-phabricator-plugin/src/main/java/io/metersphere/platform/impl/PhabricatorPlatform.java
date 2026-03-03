@@ -680,9 +680,27 @@ public class PhabricatorPlatform extends AbstractPlatform {
                     continue;
                 }
 
-                String guid = extractGuid(uploadResult);
+                // Get PHID from upload result
+                String phid = (String) uploadResult.get("result");
+                if (phid == null) {
+                    LogUtil.warn("No PHID returned for image: " + filename);
+                    continue;
+                }
+
+                // Query phid to get file info (includes GUID like "F29271")
+                Map<String, Object> phidParams = new HashMap<>();
+                phidParams.put("phids", Collections.singletonList(phid));
+                Map<String, Object> phidResult = phabricatorClient.callConduit("phid.query", phidParams);
+                
+                Map<String, Object> fileInfo = (Map<String, Object>) phidResult.get(phid);
+                if (fileInfo == null) {
+                    LogUtil.warn("No file info returned for PHID: " + phid);
+                    continue;
+                }
+
+                String guid = (String) fileInfo.get("name");  // e.g., "F29271"
                 if (guid == null) {
-                    LogUtil.warn("No guid returned for image: " + filename);
+                    LogUtil.warn("No guid (name) returned for image: " + filename);
                     continue;
                 }
 

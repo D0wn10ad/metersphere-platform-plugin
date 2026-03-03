@@ -167,3 +167,32 @@ Pattern fullPattern = Pattern.compile("!\\[([^\\]]+)\\]\\(([^)]+)\\)");
 | 2026-03-01 | `!\\[\\[([^\\]]+)\\|([^\\]]+)\\]\\]` | Initial - matches `![[URL\|filename]]` |
 | 2026-03-02 | `!\\[\\[[^\\]]+\\]\\]` | Simplified - matches `![[...]]`, extracts via string split |
 | 2026-03-03 | `!\\[([^\\]]+)\\]\\(([^)]+)\\)` | Standard Markdown - matches `![alt](url)` |
+
+### File Upload and GUID Retrieval
+
+**Process to embed inline images in Phabricator Remarkup:**
+
+1. **Upload file** via `file.upload` API:
+   - Request: `{name: "filename.png", data_base64: "...", __conduit__: {token: "..."}}`
+   - Response: `{"result": "PHID-FILE-xxx", ...}`
+
+2. **Query PHID** via `phid.query` API to get GUID:
+   - Request: `{phids: ["PHID-FILE-xxx"]}`
+   - Response:
+     ```json
+     {
+       "PHID-FILE-xxx": {
+         "phid": "PHID-FILE-xxx",
+         "uri": "https://phablab.igus.cn/F29271",
+         "name": "F29271",  // <-- This is the GUID
+         "fullName": "F29271: filename.png",
+         "status": "open"
+       }
+     }
+     ```
+
+3. **Embed image** in Remarkup using `{GUID}` format:
+   - Format: `{F29271}`
+   - This displays the uploaded image inline in the task description
+
+**Key insight:** The `name` field from `phid.query` response is the GUID (e.g., "F29271"), NOT the PHID. Use `{F29271}` for inline embedding.
