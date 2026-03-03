@@ -137,3 +137,33 @@ Before deploying a new plugin version:
 | metersphere-plugin-sdk | 1.2.0 |
 | Java (plugin modules) | 17 |
 | Java (SDK modules) | 11 |
+---
+
+## Inline Image Processing (CRITICAL)
+
+**Pattern:** Standard Markdown images: `![alt](url)`
+
+**Regex:**
+```java
+Pattern fullPattern = Pattern.compile("!\\[([^\\]]+)\\]\\(([^)]+)\\)");
+```
+
+**Matches:** `![logo.png](/resource/md/get?fileName=b849ad99.png)`
+
+**Capture groups:**
+- Group 1: Alt text (e.g., `logo.png`)
+- Group 2: URL (e.g., `/resource/md/get?fileName=b849ad99.png`)
+
+**Filename extraction:** From URL parameter `?fileName=xxx.png` using `lastIndexOf("=")`
+
+**IMPORTANT:** Do NOT change this pattern without testing. Common mistakes:
+- Missing closing `)` in regex - causes `PatternSyntaxException`
+- Wrong escape sequence - use `\\[` not `\[`
+- Extra spaces before semicolon
+
+**History:**
+| Date | Pattern | Notes |
+|------|---------|-------|
+| 2026-03-01 | `!\\[\\[([^\\]]+)\\|([^\\]]+)\\]\\]` | Initial - matches `![[URL\|filename]]` |
+| 2026-03-02 | `!\\[\\[[^\\]]+\\]\\]` | Simplified - matches `![[...]]`, extracts via string split |
+| 2026-03-03 | `!\\[([^\\]]+)\\]\\(([^)]+)\\)` | Standard Markdown - matches `![alt](url)` |
