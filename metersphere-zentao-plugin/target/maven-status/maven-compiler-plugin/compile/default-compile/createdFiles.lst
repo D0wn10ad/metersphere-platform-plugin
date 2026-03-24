@@ -1,9 +1,9 @@
-io/metersphere/platform/domain/GetUserResponse$User.class
 io/metersphere/platform/domain/GetIssueResponse$Issue.class
-io/metersphere/platform/domain/GetIssueResponse.class
+io/metersphere/platform/domain/GetUserResponse$User.class
 io/metersphere/platform/domain/GetCreateMetaDataResponse.class
-io/metersphere/platform/domain/ZentaoPlatformUserInfo.class
+io/metersphere/platform/domain/GetIssueResponse.class
 io/metersphere/platform/domain/AddIssueResponse.class
+io/metersphere/platform/domain/ZentaoPlatformUserInfo.class
 io/metersphere/platform/client/ZentaoGetClient.class
 io/metersphere/platform/domain/ZentaoProjectConfig.class
 io/metersphere/platform/domain/ZentaoResponse.class
