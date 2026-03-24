@@ -8,8 +8,9 @@ worktrees/
 .open-mem/
 
 # Build outputs
-*.class
-*.jar
-*.war
+target
 target/
 **/target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
