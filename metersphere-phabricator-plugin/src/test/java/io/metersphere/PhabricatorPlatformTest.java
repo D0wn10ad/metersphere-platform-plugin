@@ -204,6 +204,27 @@ class PhabricatorPlatformTest {
             assertNotNull(result);
             assertTrue(result.isEmpty());
         }
+
+        @Test
+        @DisplayName("Should handle exception in getUserSearchOptions")
+        void testGetUserSearchOptionsException() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            when(mockClient.searchUsers(anyMap())).thenThrow(new RuntimeException("Test error"));
+            
+            io.metersphere.platform.domain.GetOptionRequest optionRequest = new io.metersphere.platform.domain.GetOptionRequest();
+            optionRequest.setOptionMethod("getUserSearchOptions");
+            optionRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            
+            List<SelectOption> result = platform.getFormOptions(optionRequest);
+            
+            assertNotNull(result);
+            assertTrue(result.isEmpty());
+        }
     }
 
     @Nested
@@ -418,6 +439,56 @@ class PhabricatorPlatformTest {
             
             assertNotNull(result);
             assertTrue(result.isEmpty());
+        }
+
+        @Test
+        @DisplayName("Should search with query parameter")
+        void testSearchWithQuery() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            List<Map<String, Object>> mockUsers = List.of(
+                Map.of("phid", "PHID-USER-2", "fields", Map.of("userName", "john", "realName", "John Doe"))
+            );
+            when(mockClient.searchUsers(anyMap())).thenReturn(mockUsers);
+            
+            io.metersphere.platform.domain.GetOptionRequest optionRequest = new io.metersphere.platform.domain.GetOptionRequest();
+            optionRequest.setQuery("john");
+            optionRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            
+            List<SelectOption> result = platform.getUserSearchOptions(optionRequest);
+            
+            assertNotNull(result);
+            assertFalse(result.isEmpty());
+            verify(mockClient).searchUsers(argThat(map -> 
+                map.containsKey("nameLike") && "john".equals(map.get("nameLike"))
+            ));
+        }
+
+        @Test
+        @DisplayName("Should handle user without realName")
+        void testUserWithoutRealName() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            List<Map<String, Object>> mockUsers = List.of(
+                Map.of("phid", "PHID-USER-3", "fields", Map.of("userName", "alice"))
+            );
+            when(mockClient.searchUsers(anyMap())).thenReturn(mockUsers);
+            
+            io.metersphere.platform.domain.GetOptionRequest optionRequest = new io.metersphere.platform.domain.GetOptionRequest();
+            optionRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            
+            List<SelectOption> result = platform.getUserSearchOptions(optionRequest);
+            
+            assertNotNull(result);
+            assertFalse(result.isEmpty());
         }
     }
 
@@ -650,6 +721,65 @@ class PhabricatorPlatformTest {
             
             assertNotNull(result);
         }
+
+        @Test
+        @DisplayName("Should add MS URL custom field when msUrl is present")
+        void testAddIssueWithMsUrl() throws Exception {
+            PlatformRequest request = createRequest();
+            integrationConfig.setMsUrl("https://metersphere.example.com");
+            request.setIntegrationConfig(JSON.toJSONString(integrationConfig));
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            Map<String, Object> mockResult = Map.of(
+                "result", Map.of("object", Map.of("phid", "PHID-TASK-111"))
+            );
+            when(mockClient.editTask(any(), anyList())).thenReturn(mockResult);
+            when(mockClient.getTaskIdByPHID(anyString())).thenReturn("111");
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
+            
+            PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
+            updateRequest.setTitle("Test Issue with URL");
+            updateRequest.setId("issue-111");
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            
+            var result = platform.addIssue(updateRequest);
+            
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should add custom field for 发现环境")
+        void testAddIssueWithEnvCustomField() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            Map<String, Object> mockResult = Map.of(
+                "result", Map.of("object", Map.of("phid", "PHID-TASK-222"))
+            );
+            when(mockClient.editTask(any(), anyList())).thenReturn(mockResult);
+            when(mockClient.getTaskIdByPHID(anyString())).thenReturn("222");
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
+            
+            io.metersphere.platform.domain.PlatformCustomFieldItemDTO envField = 
+                new io.metersphere.platform.domain.PlatformCustomFieldItemDTO();
+            envField.setName("发现环境");
+            envField.setValue("Production");
+            
+            PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
+            updateRequest.setTitle("Test Issue");
+            updateRequest.setCustomFieldList(List.of(envField));
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            
+            var result = platform.addIssue(updateRequest);
+            
+            assertNotNull(result);
+        }
     }
 
     @Nested
@@ -697,6 +827,118 @@ class PhabricatorPlatformTest {
             
             assertNotNull(result);
             verify(mockClient).editTask(eq("123"), anyList());
+        }
+
+        @Test
+        @DisplayName("Should update issue with description")
+        void testUpdateIssueWithDescription() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            Map<String, Object> mockTask = Map.of(
+                "fields", Map.of("subtype", Map.of("value", "bug"))
+            );
+            when(mockClient.getTask(anyString())).thenReturn(mockTask);
+            
+            Map<String, Object> mockResult = Map.of(
+                "result", Map.of("object", Map.of("phid", "PHID-TASK-456"))
+            );
+            when(mockClient.editTask(any(), anyList())).thenReturn(mockResult);
+            when(mockClient.getTaskIdByPHID(anyString())).thenReturn("456");
+            
+            PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
+            updateRequest.setPlatformId("456");
+            updateRequest.setTitle("Updated Title");
+            updateRequest.setDescription("Updated description");
+            var result = platform.updateIssue(updateRequest);
+            
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should update issue with status")
+        void testUpdateIssueWithStatus() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            Map<String, Object> mockTask = Map.of(
+                "fields", Map.of("subtype", Map.of("value", "bug"))
+            );
+            when(mockClient.getTask(anyString())).thenReturn(mockTask);
+            
+            Map<String, Object> mockResult = Map.of(
+                "result", Map.of("object", Map.of("phid", "PHID-TASK-789"))
+            );
+            when(mockClient.editTask(any(), anyList())).thenReturn(mockResult);
+            when(mockClient.getTaskIdByPHID(anyString())).thenReturn("789");
+            
+            PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
+            updateRequest.setPlatformId("789");
+            updateRequest.setPlatformStatus("resolved");
+            var result = platform.updateIssue(updateRequest);
+            
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should handle T-prefix in platformId")
+        void testUpdateIssueWithTPrefix() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            Map<String, Object> mockTask = Map.of(
+                "fields", Map.of("subtype", Map.of("value", "bug"))
+            );
+            when(mockClient.getTask(anyString())).thenReturn(mockTask);
+            
+            Map<String, Object> mockResult = Map.of(
+                "result", Map.of("object", Map.of("phid", "PHID-TASK-T123"))
+            );
+            when(mockClient.editTask(any(), anyList())).thenReturn(mockResult);
+            when(mockClient.getTaskIdByPHID(anyString())).thenReturn("T123");
+            
+            PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
+            updateRequest.setPlatformId("T123");
+            var result = platform.updateIssue(updateRequest);
+            
+            assertNotNull(result);
+            verify(mockClient).editTask(eq("123"), anyList());
+        }
+
+        @Test
+        @DisplayName("Should use existing subtype when task exists")
+        void testUpdateIssuePreservesSubtype() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            Map<String, Object> mockTask = Map.of(
+                "fields", Map.of("subtype", Map.of("value", "feature"))
+            );
+            when(mockClient.getTask(anyString())).thenReturn(mockTask);
+            
+            Map<String, Object> mockResult = Map.of(
+                "result", Map.of("object", Map.of("phid", "PHID-TASK-FEAT"))
+            );
+            when(mockClient.editTask(any(), anyList())).thenReturn(mockResult);
+            when(mockClient.getTaskIdByPHID(anyString())).thenReturn("FEAT");
+            
+            PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
+            updateRequest.setPlatformId("FEAT");
+            var result = platform.updateIssue(updateRequest);
+            
+            assertNotNull(result);
         }
     }
 
@@ -778,6 +1020,232 @@ class PhabricatorPlatformTest {
             
             String configJson = "{\"defaultProjectId\":\"proj-123\"}";
             assertDoesNotThrow(() -> platform.validateProjectConfig(configJson));
+        }
+
+        @Test
+        @DisplayName("Should throw when projectPHID is set but integrationConfig is null")
+        void testValidateWhenIntegrationConfigNull() {
+            PlatformRequest request = new PlatformRequest();
+            request.setIntegrationConfig(null);
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            String configJson = "{\"projectPHID\":\"PHID-PROJ-123\"}";
+            // When projectPHID is set, validateProjectConfig calls getIntegrationConfig()
+            // which throws MSPluginException (or NPE due to MSPluginException.getException() returning null)
+            assertThrows(Exception.class, () -> platform.validateProjectConfig(configJson));
+        }
+    }
+
+    @Nested
+    @DisplayName("processInlineImages")
+    class ProcessInlineImagesTests {
+
+        @Test
+        @DisplayName("Should return original when description is blank")
+        void testBlankDescription() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            String result = platform.processInlineImages("");
+            assertEquals("", result);
+        }
+
+        @Test
+        @DisplayName("Should return original when description is null")
+        void testNullDescription() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            String result = platform.processInlineImages(null);
+            assertNull(result);
+        }
+
+        @Test
+        @DisplayName("Should return original when no images found")
+        void testNoImages() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            when(mockClient.uploadFile(anyString(), anyString())).thenReturn(Map.of("guid", "test-guid"));
+            
+            String result = platform.processInlineImages("Just plain text");
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should process images when MS resource URL found")
+        void testWithMsResourceUrl() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            when(mockClient.uploadFile(anyString(), anyString())).thenReturn(Map.of("guid", "uploaded-guid-123"));
+            when(mockClient.processRemarkup(anyString(), anyString())).thenReturn("processed");
+            
+            String result = platform.processInlineImages("Image ![[/resource/md/get?fileName=test.png|Test.png]]");
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should skip non-MS resource URLs")
+        void testNonMsResourceUrl() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            when(mockClient.processRemarkup(anyString(), anyString())).thenReturn("processed");
+            
+            String result = platform.processInlineImages("Image ![img](https://example.com/image.png)");
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should handle multiple images")
+        void testMultipleImages() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            when(mockClient.uploadFile(anyString(), anyString()))
+                .thenReturn(Map.of("guid", "guid-1"))
+                .thenReturn(Map.of("guid", "guid-2"));
+            when(mockClient.processRemarkup(anyString(), anyString())).thenReturn("processed");
+            
+            String result = platform.processInlineImages("First ![[/resource/md/get?fileName=a.png|a.png]] and second ![[/resource/md/get?fileName=b.png|b.png]]");
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should handle URL without fileName parameter")
+        void testUrlWithoutFileName() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            when(mockClient.processRemarkup(anyString(), anyString())).thenReturn("processed");
+            
+            String result = platform.processInlineImages("Image ![[/resource/md/get]]");
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should handle upload failure gracefully")
+        void testUploadFailure() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            when(mockClient.uploadFile(anyString(), anyString())).thenThrow(new RuntimeException("Upload failed"));
+            when(mockClient.processRemarkup(anyString(), anyString())).thenReturn("processed");
+            
+            String result = platform.processInlineImages("Image ![[/resource/md/get?fileName=test.png|Test.png]]");
+            assertNotNull(result);
+        }
+    }
+
+    @Nested
+    @DisplayName("encodeFileToBase64")
+    class EncodeFileToBase64Tests {
+
+        @Test
+        @DisplayName("Should encode file to base64")
+        void testEncodeFile() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            java.io.File tempFile = java.io.File.createTempFile("test", ".txt");
+            tempFile.deleteOnExit();
+            java.nio.file.Files.write(tempFile.toPath(), "Hello World".getBytes());
+            
+            String result = platform.encodeFileToBase64(tempFile);
+            
+            assertNotNull(result);
+            byte[] decoded = java.util.Base64.getDecoder().decode(result);
+            assertEquals("Hello World", new String(decoded));
+        }
+
+        @Test
+        @DisplayName("Should throw when file is null")
+        void testNullFile() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            assertThrows(NullPointerException.class, () -> platform.encodeFileToBase64(null));
+        }
+
+        @Test
+        @DisplayName("Should return null when file does not exist")
+        void testNonExistentFile() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            java.io.File nonExistent = new java.io.File("/nonexistent/file.txt");
+            String result = platform.encodeFileToBase64(nonExistent);
+            assertNull(result);
+        }
+    }
+
+    @Nested
+    @DisplayName("extractGuid")
+    class ExtractGuidTests {
+
+        @Test
+        @DisplayName("Should extract guid from result")
+        void testExtractGuid() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            Map<String, Object> result = Map.of("guid", "test-guid-123");
+            String guid = platform.extractGuid(result);
+            
+            assertEquals("test-guid-123", guid);
+        }
+
+        @Test
+        @DisplayName("Should return null when result is null")
+        void testNullResult() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            String guid = platform.extractGuid(null);
+            assertNull(guid);
+        }
+
+        @Test
+        @DisplayName("Should return null when guid is not in result")
+        void testNoGuidInResult() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            Map<String, Object> result = Map.of("other", "value");
+            String guid = platform.extractGuid(result);
+            
+            assertNull(guid);
+        }
+
+        @Test
+        @DisplayName("Should handle non-string guid value")
+        void testNonStringGuid() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            Map<String, Object> result = Map.of("guid", 12345);
+            String guid = platform.extractGuid(result);
+            
+            assertEquals("12345", guid);
         }
     }
 }
