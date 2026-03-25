@@ -607,4 +607,78 @@ class PhabricatorClientTest {
             assertThrows(Exception.class, () -> client.uploadFile("test.png", null));
         }
     }
+
+    @Nested
+    @DisplayName("getTaskIdByPHID edge cases")
+    class GetTaskIdByPHIDEdgeTests {
+
+        @Test
+        @DisplayName("Should throw when config is null")
+        void testWithNullConfig() {
+            PhabricatorClient client = new PhabricatorClient();
+            assertThrows(Exception.class, () -> client.getTaskIdByPHID("PHID-TASK-123"));
+        }
+    }
+
+    @Nested
+    @DisplayName("getProjectNameByPHID edge cases")
+    class GetProjectNameByPHIDEdgeTests {
+
+        @Test
+        @DisplayName("Should throw when config is null")
+        void testWithNullConfig() {
+            PhabricatorClient client = new PhabricatorClient();
+            assertThrows(Exception.class, () -> client.getProjectNameByPHID("PHID-PROJ-123"));
+        }
+    }
+
+    @Nested
+    @DisplayName("searchTasks with limit edge cases")
+    class SearchTasksWithLimitEdgeTests {
+
+        @Test
+        @DisplayName("Should throw when config is null")
+        void testWithNullConfig() {
+            PhabricatorClient client = new PhabricatorClient();
+            assertThrows(Exception.class, () -> client.searchTasks(Map.of(), 10));
+        }
+
+        @Test
+        @DisplayName("Should throw when constraints is null")
+        void testWithNullConstraints() {
+            PhabricatorClient client = new PhabricatorClient(config);
+            assertThrows(Exception.class, () -> client.searchTasks(null, 10));
+        }
+    }
+
+    @Nested
+    @DisplayName("searchProjects edge cases")
+    class SearchProjectsEdgeTests {
+
+        @Test
+        @DisplayName("Should throw when config is null")
+        void testWithNullConfig() {
+            PhabricatorClient client = new PhabricatorClient();
+            assertThrows(Exception.class, () -> client.searchProjects(Map.of()));
+        }
+    }
+
+    @Nested
+    @DisplayName("searchUsers edge cases")
+    class SearchUsersEdgeTests {
+
+        @Test
+        @DisplayName("Should throw when config is null")
+        void testWithNullConfig() {
+            PhabricatorClient client = new PhabricatorClient();
+            assertThrows(Exception.class, () -> client.searchUsers(Map.of()));
+        }
+
+        @Test
+        @DisplayName("Should throw when constraints is null")
+        void testWithNullConstraints() {
+            PhabricatorClient client = new PhabricatorClient(config);
+            assertThrows(Exception.class, () -> client.searchUsers(null));
+        }
+    }
 }

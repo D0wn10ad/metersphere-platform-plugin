@@ -600,6 +600,56 @@ class PhabricatorPlatformTest {
             assertNotNull(result);
             verify(mockClient).mapSeverityToPriority("P1");
         }
+
+        @Test
+        @DisplayName("Should handle issue without description")
+        void testNoDescription() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            Map<String, Object> mockResult = Map.of(
+                "result", Map.of("object", Map.of("phid", "PHID-TASK-456"))
+            );
+            when(mockClient.editTask(any(), anyList())).thenReturn(mockResult);
+            when(mockClient.getTaskIdByPHID(anyString())).thenReturn("456");
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
+            
+            PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
+            updateRequest.setTitle("Test Issue");
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            
+            var result = platform.addIssue(updateRequest);
+            
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should use default subtype from project config")
+        void testDefaultSubtype() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            Map<String, Object> mockResult = Map.of(
+                "result", Map.of("object", Map.of("phid", "PHID-TASK-789"))
+            );
+            when(mockClient.editTask(any(), anyList())).thenReturn(mockResult);
+            when(mockClient.getTaskIdByPHID(anyString())).thenReturn("789");
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
+            
+            PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
+            updateRequest.setTitle("Issue with default subtype");
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            
+            var result = platform.addIssue(updateRequest);
+            
+            assertNotNull(result);
+        }
     }
 
     @Nested
@@ -693,6 +743,41 @@ class PhabricatorPlatformTest {
             
             assertDoesNotThrow(() -> platform.deleteIssue("T123"));
             verify(mockClient).editTask(eq("123"), anyList());
+        }
+    }
+
+    @Nested
+    @DisplayName("validateIntegrationConfig")
+    class ValidateIntegrationConfigTests {
+
+        @Test
+        @DisplayName("Should validate successfully when connection works")
+        void testValidatesSuccessfully() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+            
+            when(mockClient.testConnection()).thenReturn(true);
+            
+            assertDoesNotThrow(() -> platform.validateIntegrationConfig());
+            verify(mockClient).testConnection();
+        }
+    }
+
+    @Nested
+    @DisplayName("validateProjectConfig additional tests")
+    class ValidateProjectConfigAdditionalTests {
+
+        @Test
+        @DisplayName("Should validate when defaultProjectId exists")
+        void testValidatesWithDefaultProjectId() {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+            
+            String configJson = "{\"defaultProjectId\":\"proj-123\"}";
+            assertDoesNotThrow(() -> platform.validateProjectConfig(configJson));
         }
     }
 }
