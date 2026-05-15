@@ -15,8 +15,8 @@ io/metersphere/platform/domain/PlatformRequest.class
 io/metersphere/platform/utils/BeanUtils.class
 io/metersphere/platform/domain/SelectOption.class
 io/metersphere/platform/domain/DemandDTO.class
-io/metersphere/platform/utils/EncryptUtils.class
 io/metersphere/platform/domain/PlatformIssuesDTO.class
+io/metersphere/platform/utils/EncryptUtils.class
 io/metersphere/platform/domain/PlatformIssuesUpdateRequest.class
 io/metersphere/platform/utils/EnvProxySelector.class
 io/metersphere/platform/api/BaseClient.class
@@ -24,7 +24,7 @@ io/metersphere/platform/domain/PlatformUser.class
 io/metersphere/platform/constants/CustomFieldType.class
 io/metersphere/platform/domain/GetOptionRequest.class
 io/metersphere/platform/domain/SyncAllIssuesResult.class
-io/metersphere/platform/domain/PlatformAttachment.class
 io/metersphere/platform/domain/SyncIssuesAttachmentRequest.class
+io/metersphere/platform/domain/PlatformAttachment.class
 io/metersphere/platform/domain/SyncIssuesRequest.class
 io/metersphere/platform/domain/SyncIssuesResult.class

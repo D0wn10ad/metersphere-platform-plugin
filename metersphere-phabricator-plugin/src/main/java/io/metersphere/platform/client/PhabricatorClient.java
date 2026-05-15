@@ -5,59 +5,39 @@ import io.metersphere.plugin.exception.MSPluginException;
 import io.metersphere.plugin.utils.JSON;
 import io.metersphere.plugin.utils.LogUtil;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hc.client5.http.classic.methods.HttpGet;
-import org.apache.hc.client5.http.classic.methods.HttpPost;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManager;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.config.RequestConfig;
-import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
-import org.apache.hc.core5.http.io.entity.StringEntity;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.hc.core5.util.Timeout;
 
 public class PhabricatorClient {
     private PhabricatorConfig config;
-    private CloseableHttpClient httpClient;
+    private PhabricatorHttpClient httpClient;
 
     public PhabricatorClient() {
     }
 
     public PhabricatorClient(PhabricatorConfig config) {
+        this(config, new DefaultPhabricatorHttpClient());
+    }
+
+    public PhabricatorClient(PhabricatorConfig config, PhabricatorHttpClient httpClient) {
         this.config = config;
-        this.httpClient = createHttpClient();
+        this.httpClient = httpClient;
     }
 
     public void setConfig(PhabricatorConfig config) {
         this.config = config;
-        this.httpClient = createHttpClient();
+        if (httpClient == null) {
+            this.httpClient = new DefaultPhabricatorHttpClient();
+        }
     }
 
-    private CloseableHttpClient createHttpClient() {
-        PoolingHttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
-            .setMaxConnTotal(20)
-            .setMaxConnPerRoute(10)
-            .build();
-
-        RequestConfig requestConfig = RequestConfig.custom()
-            .setConnectTimeout(Timeout.ofSeconds(30))
-            .setResponseTimeout(Timeout.ofSeconds(120))
-            .setConnectionRequestTimeout(Timeout.ofSeconds(30))
-            .build();
-
-        return HttpClients.custom()
-            .setDefaultRequestConfig(requestConfig)
-            .setConnectionManager(connectionManager)
-            .build();
+    public void setHttpClient(PhabricatorHttpClient httpClient) {
+        this.httpClient = httpClient;
     }
 
     @SuppressWarnings("unchecked")
@@ -66,7 +46,7 @@ public class PhabricatorClient {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> callConduitWithRetry(String method, Map<String, Object> params, int maxRetries, long initialDelayMs) {
+    Map<String, Object> callConduitWithRetry(String method, Map<String, Object> params, int maxRetries, long initialDelayMs) {
         if (config == null || config.getUrl() == null) {
             MSPluginException.throwException("Phabricator configuration is not set");
             return null;
@@ -96,42 +76,30 @@ public class PhabricatorClient {
                     LogUtil.info("[Phabricator DEBUG] Request: " + maskToken(formBody));
                 }
 
-                HttpPost httpPost = new HttpPost(url);
-                httpPost.setHeader("Content-Type", "application/x-www-form-urlencoded");
-                httpPost.setEntity(new StringEntity(formBody, 
-                    ContentType.create("application/x-www-form-urlencoded", StandardCharsets.UTF_8)));
+                String responseBody = httpClient.executePost(url, formBody);
 
-                try (org.apache.hc.core5.http.ClassicHttpResponse response = httpClient.execute(httpPost)) {
-                    int statusCode = response.getCode();
-                    String responseBody = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
-
-                    if (statusCode >= 400) {
-                        throw new RuntimeException("HTTP error " + statusCode + " from Phabricator: " + responseBody);
-                    }
-
-                    if (config.isDebugMode()) {
-                        String truncatedResponse = responseBody.length() > 2000 
-                            ? responseBody.substring(0, 2000) + "... [truncated]" 
-                            : responseBody;
-                        LogUtil.info("[Phabricator DEBUG] Response: " + truncatedResponse);
-                    }
-
-                    if (responseBody == null || responseBody.isBlank()) {
-                        throw new RuntimeException("Empty response body from Phabricator");
-                    }
-
-                    Map<String, Object> body = JSON.parseObject(responseBody, Map.class);
-
-                    if (body == null) {
-                        throw new RuntimeException("Failed to parse JSON response from Phabricator");
-                    }
-
-                    if (body.get("error_code") != null) {
-                        MSPluginException.throwException("Phabricator API error: " + body.get("error_info"));
-                    }
-
-                    return body;
+                if (responseBody == null || responseBody.isBlank()) {
+                    throw new RuntimeException("Empty response body from Phabricator");
                 }
+
+                if (config.isDebugMode()) {
+                    String truncatedResponse = responseBody.length() > 2000 
+                        ? responseBody.substring(0, 2000) + "... [truncated]" 
+                        : responseBody;
+                    LogUtil.info("[Phabricator DEBUG] Response: " + truncatedResponse);
+                }
+
+                Map<String, Object> body = JSON.parseObject(responseBody, Map.class);
+
+                if (body == null) {
+                    throw new RuntimeException("Failed to parse JSON response from Phabricator");
+                }
+
+                if (body.get("error_code") != null) {
+                    MSPluginException.throwException("Phabricator API error: " + body.get("error_info"));
+                }
+
+                return body;
             } catch (MSPluginException e) {
                 throw e;
             } catch (Exception e) {

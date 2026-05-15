@@ -1,3 +1,16 @@
 # Worktrees
 .worktrees/
 worktrees/
+
+# open-mem: Auto-generated folder context files.
+# Uncomment to exclude from version control (recommended for large projects):
+# **/AGENTS.md
+.open-mem/
+
+# Build outputs
+target
+target/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/

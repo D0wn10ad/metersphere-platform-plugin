@@ -1,7 +1,9 @@
 io/metersphere/platform/utils/PhabricatorMarkupUtils.class
+io/metersphere/platform/client/DefaultPhabricatorHttpClient.class
 io/metersphere/platform/impl/PhabricatorPlatform.class
 io/metersphere/platform/domain/PhabricatorProjectConfig.class
 io/metersphere/platform/domain/PhabricatorConfig.class
 io/metersphere/platform/client/PhabricatorClient.class
 io/metersphere/platform/utils/PhabricatorMarkupUtils$MsImageInfo.class
+io/metersphere/platform/client/PhabricatorHttpClient.class
 io/metersphere/platform/impl/PhabricatorPlatformMetaInfo.class

@@ -619,7 +619,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
      * MS format: ![[/resource/md/get?fileName=xxx.png|Filename.png]]
      * Target format: {guid-from-file-upload}
      */
-    private String processInlineImages(String description) {
+    public String processInlineImages(String description) {
         if (StringUtils.isBlank(description)) {
             return description;
         }
@@ -721,7 +721,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
     /**
      * Read file and encode to base64
      */
-    private String encodeFileToBase64(File file) {
+    public String encodeFileToBase64(File file) {
         try {
             byte[] fileData = Files.readAllBytes(file.toPath());
             return Base64.getEncoder().encodeToString(fileData);
@@ -734,7 +734,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
     /**
      * Extract guid from file.upload response
      */
-    private String extractGuid(Map<String, Object> result) {
+    public String extractGuid(Map<String, Object> result) {
         if (result == null) return null;
         Object guid = result.get("guid");
         return guid != null ? guid.toString() : null;
