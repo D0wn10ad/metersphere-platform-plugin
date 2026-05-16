@@ -67,8 +67,12 @@ String json = JSON.toJSONString(obj);
 - Mask sensitive data (API tokens) in logs:
 ```java
 private String maskToken(String formBody) {
-    return formBody.replaceAll("\"token\":\"[^\"]+\"", "\"token\":\"***MASKED***\"");
+    return formBody.replaceAll("\"token\"\\s*:\\s*\"[^\"]+\"", "\"token\":\"***MASKED***\"");
 }
+```
+- Use `JSON.toPrettyJSONString()` for human-readable debug output:
+```java
+LogUtil.info("[Phabricator DEBUG] Request JSON (pretty): " + maskToken(JSON.toPrettyJSONString(apiParams)));
 ```
 
 ## Common Dependencies

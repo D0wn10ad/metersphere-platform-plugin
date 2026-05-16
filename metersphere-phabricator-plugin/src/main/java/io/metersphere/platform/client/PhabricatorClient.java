@@ -74,19 +74,21 @@ public class PhabricatorClient {
                     LogUtil.info("[Phabricator DEBUG] Calling API: " + method + " (attempt " + (attempt + 1) + ")");
                     LogUtil.info("[Phabricator DEBUG] URL: " + url);
                     LogUtil.info("[Phabricator DEBUG] Request: " + maskToken(formBody));
+                    LogUtil.info("[Phabricator DEBUG] Request JSON (pretty): " + maskToken(prettyPrintJson(jsonParams)));
                 }
 
                 String responseBody = httpClient.executePost(url, formBody);
 
-                if (responseBody == null || responseBody.isBlank()) {
-                    throw new RuntimeException("Empty response body from Phabricator");
+                if (config.isDebugMode()) {
+                    String prettyResponse = prettyPrintJson(responseBody);
+                    if (prettyResponse.length() > 2000) {
+                        prettyResponse = prettyResponse.substring(0, 2000) + "... [truncated]";
+                    }
+                    LogUtil.info("[Phabricator DEBUG] Response (pretty): " + maskToken(prettyResponse));
                 }
 
-                if (config.isDebugMode()) {
-                    String truncatedResponse = responseBody.length() > 2000 
-                        ? responseBody.substring(0, 2000) + "... [truncated]" 
-                        : responseBody;
-                    LogUtil.info("[Phabricator DEBUG] Response: " + truncatedResponse);
+                if (responseBody == null || responseBody.isBlank()) {
+                    throw new RuntimeException("Empty response body from Phabricator");
                 }
 
                 Map<String, Object> body = JSON.parseObject(responseBody, Map.class);
@@ -158,7 +160,42 @@ public class PhabricatorClient {
         if (formBody == null) {
             return null;
         }
-        return formBody.replaceAll("\"token\":\"[^\"]+\"", "\"token\":\"***MASKED***\"");
+        return formBody.replaceAll("\"token\"\\s*:\\s*\"[^\"]+\"", "\"token\": \"***MASKED***\"");
+    }
+
+    public String prettyPrintJson(String json) {
+        if (json == null || json.isBlank()) return json;
+        StringBuilder sb = new StringBuilder();
+        int indent = 0;
+        boolean inString = false;
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (c == '"' && (i == 0 || json.charAt(i - 1) != '\\')) inString = !inString;
+            if (!inString) {
+                switch (c) {
+                    case '{': case '[':
+                        sb.append(c).append('\n');
+                        indent++;
+                        sb.append("  ".repeat(indent));
+                        continue;
+                    case '}': case ']':
+                        sb.append('\n');
+                        indent--;
+                        sb.append("  ".repeat(indent));
+                        sb.append(c);
+                        continue;
+                    case ',':
+                        sb.append(c).append('\n');
+                        sb.append("  ".repeat(indent));
+                        continue;
+                    case ':':
+                        sb.append(": ");
+                        continue;
+                }
+            }
+            sb.append(c);
+        }
+        return sb.toString();
     }
 
     public void auth() {

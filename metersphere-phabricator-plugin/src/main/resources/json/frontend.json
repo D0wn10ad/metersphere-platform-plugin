@@ -10,7 +10,7 @@
         "defaultValue": "",
         "required": true,
         "i18n": true,
-        "label": "organization.integration.phabricator_url",
+        "label": "Phorge URL",
         "message": "organization.integration.input_phabricator_url"
       },
       {
@@ -19,7 +19,7 @@
         "defaultValue": "",
         "required": true,
         "i18n": true,
-        "label": "organization.integration.api_token",
+        "label": "Phorge API Token",
         "message": "organization.integration.input_api_token"
       },
       {
@@ -28,14 +28,14 @@
         "defaultValue": false,
         "required": false,
         "i18n": true,
-        "label": "organization.integration.phabricator_debug",
+        "label": "Debug Mode",
         "tips": "启用后将在日志中打印 API 请求和响应内容"
       },
       {
         "name": "msUrl",
         "type": "input",
         "required": false,
-        "label": "organization.integration.phabricator_ms_url",
+        "label": "Metersphere URL",
         "placeholder": "https://metersphere.example.com"
       }
     ]

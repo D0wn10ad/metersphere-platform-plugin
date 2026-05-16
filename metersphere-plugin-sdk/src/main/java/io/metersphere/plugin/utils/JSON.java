@@ -37,6 +37,14 @@ public class JSON {
         }
     }
 
+    public static String toPrettyJSONString(Object value) {
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(value);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public static Object parseObject(String content) {
         return parseObject(content, Object.class);
     }

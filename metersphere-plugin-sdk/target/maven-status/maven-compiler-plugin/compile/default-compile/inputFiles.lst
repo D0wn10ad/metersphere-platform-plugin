@@ -1,7 +1,0 @@
-/home/kyle/workspace/metersphere-platform-plugin/metersphere-plugin-sdk/src/main/java/io/metersphere/plugin/exception/MSPluginException.java
-/home/kyle/workspace/metersphere-platform-plugin/metersphere-plugin-sdk/src/main/java/io/metersphere/plugin/loader/PluginClassLoader.java
-/home/kyle/workspace/metersphere-platform-plugin/metersphere-plugin-sdk/src/main/java/io/metersphere/plugin/utils/LogUtil.java
-/home/kyle/workspace/metersphere-platform-plugin/metersphere-plugin-sdk/src/main/java/io/metersphere/plugin/storage/StorageStrategy.java
-/home/kyle/workspace/metersphere-platform-plugin/metersphere-plugin-sdk/src/main/java/io/metersphere/plugin/storage/LocalStorageStrategy.java
-/home/kyle/workspace/metersphere-platform-plugin/metersphere-plugin-sdk/src/main/java/io/metersphere/plugin/utils/JSON.java
-/home/kyle/workspace/metersphere-platform-plugin/metersphere-plugin-sdk/src/main/java/io/metersphere/plugin/loader/PluginManager.java

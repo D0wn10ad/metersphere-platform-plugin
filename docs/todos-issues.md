@@ -20,7 +20,7 @@
 - User doesn't provide apiToken (blank) → silently skip validation (use integration token)
 
 **Location:**
-- `metersphere-phabricator-plugin/src/main/java/io/metersphere/platform/impl/PhabricatorPlatform.java:97-107`
+- `metersphere-phabricator-plugin/src/main/java/io/metersphere/platform/impl/PhabricatorPlatform.java:330-340`
 
 **Fix Required:**
 ```java
@@ -74,12 +74,12 @@ public void validateUserConfig(String userConfig) {
 |---------|--------|
 | validateIntegrationConfig() | ✅ Implemented |
 | validateProjectConfig() | ✅ Implemented |
-| validateUserConfig() | ✅ Implemented |
+| validateUserConfig() | ✅ Implemented (see Known Bug above) |
 | getStatusList() | ✅ Implemented |
 | getDemands() | ✅ Implemented |
 | addIssue() | ✅ Implemented |
-| updateIssue() | ✅ Implemented |
-| deleteIssue() | ✅ Implemented |
+| updateIssue() | ✅ Implemented (aligned with addIssue via buildCommonTransactions) |
+| deleteIssue() | ✅ Implemented (subtype preserved, same pattern as updateIssue) |
 | syncIssues() | ✅ Implemented |
 | isAttachmentUploadSupport() | ✅ Returns true |
 | remarkupToMarkdown() | ✅ Implemented |
@@ -89,20 +89,29 @@ public void validateUserConfig(String userConfig) {
 | getTaskIdByPHID() | ✅ Implemented |
 | getFormOptions() | ✅ Implemented |
 | getIssueTypes() | ✅ Implemented |
+| buildCommonTransactions() | ✅ Extracted (shared by addIssue, updateIssue, deleteIssue) |
+| getEnvFromRequest() | ✅ Extracted (custom.igus.env field extraction) |
+| toPrettyJSONString() | ✅ Added to SDK JSON utility |
+| Pretty-print debug logging | ✅ Human-readable JSON in debug output |
 
 ---
 
-## Bug Fixes Applied (2026-02-25)
+## Bug Fixes Applied
 
-| Issue | Fix |
-|-------|-----|
-| Transaction type `"project"` invalid | Changed to `"projects.add"` for adding project tags |
-| Constructed fake PHID from ID | Now uses numeric ID directly with maniphest.edit |
-| Default subtype was "task" | Changed to "bug" (more common in Phorge) |
-| HTTP errors being retried | HTTP 4xx/5xx now fail immediately (not retried) |
-| Debug logs using LogUtil.info() | Changed to LogUtil.debug() |
-| API token logged in plain text | Added maskToken() to mask token as ***MASKED*** |
-| Comments didn't show task ID | Added humanReadableId (T+id) in delete comments |
+| Date | Issue | Fix |
+|------|-------|-----|
+| 2026-02-25 | Transaction type `"project"` invalid | Changed to `"projects.add"` for adding project tags |
+| 2026-02-25 | Constructed fake PHID from ID | Now uses numeric ID directly with maniphest.edit |
+| 2026-02-25 | Default subtype was "task" | Changed to "bug" (more common in Phorge) |
+| 2026-02-25 | HTTP errors being retried | HTTP 4xx/5xx now fail immediately (not retried) |
+| 2026-02-25 | Debug logs using LogUtil.info() | Changed to LogUtil.debug() |
+| 2026-02-25 | API token logged in plain text | Added maskToken() to mask token as ***MASKED*** |
+| 2026-02-25 | Comments didn't show task ID | Added humanReadableId (T+id) in delete comments |
+| 2026-03-04 | Debug logs show URL-encoded params | Added `toPrettyJSONString()` and pretty-printed JSON debug line; kept original formBody log too |
+| 2026-03-04 | Duplicate junit-jupiter & maven-surefire-plugin in POM | Removed duplicate entries from phabricator plugin pom.xml |
+| 2026-03-04 | addIssue/updateIssue transaction mismatch | Extracted `buildCommonTransactions()` so both methods send same fields (title, description, priority, projects.add, custom.igus.env). updateIssue now also sends priority, projects.add, and env (previously missing). |
+| 2026-03-04 | deleteIssue hardcoded subtype to "bug" | Now preserves existing subtype before closing (same pattern as updateIssue) |
+| 2026-03-04 | Unused imports in PhabricatorPlatform.java | Removed `java.net.HttpURLConnection` and `java.net.URL` |
 
 ---
 
@@ -196,3 +205,28 @@ Pattern fullPattern = Pattern.compile("!\\[([^\\]]+)\\]\\(([^)]+)\\)");
    - This displays the uploaded image inline in the task description
 
 **Key insight:** The `name` field from `phid.query` response is the GUID (e.g., "F29271"), NOT the PHID. Use `{F29271}` for inline embedding.
+
+---
+
+## Future Considerations
+
+### File Attachment Sync (syncIssuesAttachment)
+
+**Current state:** `isAttachmentUploadSupport()` returns `true` but `syncIssuesAttachment()` is a no-op.  
+**Inline image upload** in descriptions works via `processInlineImages()` → `file.upload` → `{Fnnn}` embed.
+
+**Why file sync was deferred:**  
+The Phabricator Conduit API has two hard limitations:
+1. **No `file.delete`** — uploaded files are permanent (append-only)
+2. **No comment modification/deletion** — once a `{Fnnn}` reference is added as a comment, it cannot be removed via API
+
+**Approaches evaluated:**
+
+| Approach | Upload | Delete | Viable? |
+|----------|--------|--------|---------|
+| **Comment-based** | `file.upload` → `{Fnnn}` → new comment | ❌ Can't remove comment | Simple upload, but DELETE impossible |
+| **Description-based** | Append `{Fnnn}` to description footer | Remove from description via `editTask` | True unlink, but next `updateIssue()` could overwrite the footer |
+| **Custom field** | Store refs in a `custom.igus.*` text field | Remove ref from field value | Stable, but requires Phabricator form config |
+
+**To implement in the future:**  
+Choose a storage approach (description footer or custom field), then wire `syncIssuesAttachment()` for UPLOAD + matching DELETE logic. The building blocks already exist (`uploadFile`, `encodeFileToBase64`, `phid.query`, `editTask`).

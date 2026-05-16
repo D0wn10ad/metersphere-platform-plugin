@@ -1,9 +1,0 @@
-io/metersphere/plugin/loader/PluginClassLoader.class
-io/metersphere/plugin/exception/MSPluginException.class
-io/metersphere/plugin/storage/StorageStrategy.class
-io/metersphere/plugin/utils/JSON$1.class
-io/metersphere/plugin/utils/JSON.class
-io/metersphere/plugin/storage/LocalStorageStrategy.class
-io/metersphere/plugin/loader/PluginClassLoader$byteArrayWrapper.class
-io/metersphere/plugin/loader/PluginManager.class
-io/metersphere/plugin/utils/LogUtil.class

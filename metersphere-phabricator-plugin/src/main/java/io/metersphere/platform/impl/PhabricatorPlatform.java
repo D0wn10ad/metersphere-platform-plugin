@@ -13,8 +13,6 @@ import java.io.File;
 import java.nio.file.Files;
 
 import java.util.*;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.util.Base64;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -116,81 +114,25 @@ public class PhabricatorPlatform extends AbstractPlatform {
             LogUtil.info("[Phabricator DEBUG] request.getId(): " + request.getId());
             LogUtil.info("[Phabricator DEBUG] getIntegrationConfig(): " + JSON.toJSONString(integrationConfig).replaceAll("\"apiToken\":\"[^\"]+\"", "\"apiToken\":\"***MASKED***\""));
             LogUtil.info("[Phabricator DEBUG] getProjectConfig(): " + JSON.toJSONString(projectConfig));
-            LogUtil.info("[Phabricator DEBUG] getCustomFieldList(): " + JSON.toJSONString(request.getCustomFieldList()));
+            LogUtil.info("[Phabricator DEBUG] getCustomFieldList(): " + phabricatorClient.prettyPrintJson(JSON.toJSONString(request.getCustomFieldList())));
         }
-        PhabricatorMarkupUtils markupUtils = new PhabricatorMarkupUtils(phabricatorClient);
+        List<Map<String, Object>> transactions = buildCommonTransactions(request, projectConfig);
         
-        List<Map<String, Object>> transactions = new ArrayList<>();
+        // Set env to empty string on creation; actual value updated in follow-up
+        transactions.removeIf(t -> "custom.igus.env".equals(t.get("type")));
+        transactions.add(Map.of("type", "custom.igus.env", "value", ""));
         
-        // Title (required)
-        if (StringUtils.isNotBlank(request.getTitle())) {
-            transactions.add(Map.of(
-                "type", "title",
-                "value", request.getTitle()
-            ));
-        }
-        
-        // Description (convert Markdown to Remarkup)
-        if (StringUtils.isNotBlank(request.getDescription())) {
-            String remarkup = processInlineImages(request.getDescription());
-            LogUtil.info("[addIssue] Converted remarkup: " + remarkup.substring(0, Math.min(500, remarkup.length())));
-            transactions.add(Map.of(
-                "type", "description",
-                "value", remarkup
-            ));
-        }
-        
-        // Subtype (default to "bug" for new tasks)
+        // Subtype
         String subtype = projectConfig.getDefaultSubtype();
         if (StringUtils.isBlank(subtype)) {
             subtype = "bug";
         }
-        transactions.add(Map.of(
-            "type", "subtype",
-            "value", subtype
-        ));
+        transactions.add(Map.of("type", "subtype", "value", subtype));
         
-        // Project PHID - use projects.add to add project tag
-        if (StringUtils.isNotBlank(projectConfig.getProjectPHID())) {
-            transactions.add(Map.of(
-                "type", "projects.add",
-                "value", List.of(projectConfig.getProjectPHID())
-            ));
-        }
-
-        // Priority - map from severity custom field
-        String severity = getSeverityFromRequest(request);
-        String priority = phabricatorClient.mapSeverityToPriority(severity);
-        transactions.add(Map.of(
-            "type", "priority",
-            "value", priority
-        ));
-
         // Custom field: MS URL -> custom.igus.related-to
         if (StringUtils.isNotBlank(msUrl)) {
             String relatedToUrl = msUrl + "/#/track/issue?id=" + request.getId();
-            transactions.add(Map.of(
-                "type", "custom.igus.related-to",
-                "value", relatedToUrl
-            ));
-        }        
-        
-        // Custom field: 发现环境 -> custom.igus.env
-        List<PlatformCustomFieldItemDTO> customFields = request.getCustomFieldList();
-        if (customFields != null) {
-            for (PlatformCustomFieldItemDTO field : customFields) {
-                String fieldName = field.getName();
-                if (fieldName != null && fieldName.contains("发现环境")) {
-                    Object envValue = field.getValue();
-                    if (envValue != null) {
-                        transactions.add(Map.of(
-                            "type", "custom.igus.env",
-                            "value", envValue.toString()
-                        ));
-                    }
-                    break;
-                }
-            }
+            transactions.add(Map.of("type", "custom.igus.related-to", "value", relatedToUrl));
         }
 
 
@@ -228,6 +170,18 @@ public class PhabricatorPlatform extends AbstractPlatform {
                                     // Don't fail the main task if comment fails
                                     LogUtil.warn("Failed to add MS URL comment: " + e.getMessage());
                                 }
+                                
+                                // Update env with actual value from custom fields
+                                try {
+                                    String envValue = getEnvFromRequest(request);
+                                    if (StringUtils.isNotBlank(envValue)) {
+                                        List<Map<String, Object>> envTransactions = new ArrayList<>();
+                                        envTransactions.add(Map.of("type", "custom.igus.env", "value", envValue));
+                                        phabricatorClient.editTask(id, envTransactions);
+                                    }
+                                } catch (Exception e) {
+                                    LogUtil.warn("Failed to update env: " + e.getMessage());
+                                }
                             }
                         }
                     }
@@ -253,40 +207,17 @@ public class PhabricatorPlatform extends AbstractPlatform {
             MSPluginException.throwException("平台ID不能为空");
         }
         
-        PhabricatorMarkupUtils markupUtils = new PhabricatorMarkupUtils(phabricatorClient);
+        PhabricatorProjectConfig projectConfig = getProjectConfig(request.getProjectConfig());
         
-        List<Map<String, Object>> transactions = new ArrayList<>();
-        
-        // Title
-        if (StringUtils.isNotBlank(request.getTitle())) {
-            transactions.add(Map.of(
-                "type", "title",
-                "value", request.getTitle()
-            ));
-        }
-        
-        // Description (convert Markdown to Remarkup)
-        if (StringUtils.isNotBlank(request.getDescription())) {
-            String remarkup = processInlineImages(request.getDescription());
-            LogUtil.info("[addIssue] Converted remarkup: " + remarkup.substring(0, Math.min(500, remarkup.length())));
-            transactions.add(Map.of(
-                "type", "description",
-                "value", remarkup
-            ));
-        }
+        List<Map<String, Object>> transactions = buildCommonTransactions(request, projectConfig);
         
         // Status
         if (StringUtils.isNotBlank(request.getPlatformStatus())) {
-            String phabStatus = request.getPlatformStatus();
-            transactions.add(Map.of(
-                "type", "status",
-                "value", phabStatus
-            ));
+            transactions.add(Map.of("type", "status", "value", request.getPlatformStatus()));
         }
         
         // Subtype - preserve existing or default to "bug"
         String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
-            String humanReadableId = "T" + id;
         String subtypeToUse = "bug";
         try {
             Map<String, Object> currentTask = phabricatorClient.getTask(id);
@@ -305,10 +236,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         } catch (Exception e) {
             LogUtil.warn("Failed to get current task subtype, using default 'bug': " + e.getMessage());
         }
-        transactions.add(Map.of(
-            "type", "subtype",
-            "value", subtypeToUse
-        ));
+        transactions.add(Map.of("type", "subtype", "value", subtypeToUse));
         
         try {
             // Use numeric ID directly with maniphest.edit
@@ -350,20 +278,32 @@ public class PhabricatorPlatform extends AbstractPlatform {
         }
         
         try {
-            // Use numeric ID directly with maniphest.edit
             String id = platformId.startsWith("T") ? platformId.substring(1) : platformId;
-            String humanReadableId = "T" + id;
             
-            // Close the issue instead of deleting (Phabricator doesn't support hard delete)
+            // Preserve existing subtype
+            String subtypeToUse = "bug";
+            try {
+                Map<String, Object> currentTask = phabricatorClient.getTask(id);
+                if (currentTask != null) {
+                    Object fields = currentTask.get("fields");
+                    if (fields instanceof Map) {
+                        Object subtypeObj = ((Map<String, Object>) fields).get("subtype");
+                        if (subtypeObj instanceof Map) {
+                            String existingSubtype = (String) ((Map<String, Object>) subtypeObj).get("value");
+                            if (StringUtils.isNotBlank(existingSubtype)) {
+                                subtypeToUse = existingSubtype;
+                            }
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LogUtil.warn("Failed to get current task subtype, using default 'bug': " + e.getMessage());
+            }
+            
             List<Map<String, Object>> transactions = new ArrayList<>();
-            transactions.add(Map.of(
-                "type", "status",
-                "value", "resolved"
-            ));
-            transactions.add(Map.of(
-                "type", "comment",
-                "value", "Closed by MeterSphere (" + humanReadableId + ")"
-            ));
+            transactions.add(Map.of("type", "subtype", "value", subtypeToUse));
+            transactions.add(Map.of("type", "status", "value", "resolved"));
+            transactions.add(Map.of("type", "comment", "value", "Closed by MeterSphere (T" + id + ")"));
             
             phabricatorClient.editTask(id, transactions);
             
@@ -604,7 +544,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         }
         for (PlatformCustomFieldItemDTO field : customFields) {
             String fieldName = field.getName();
-            if (fieldName != null && fieldName.toLowerCase().contains("severity")) {
+            if (fieldName != null && (fieldName.toLowerCase().contains("severity") || fieldName.contains("严重程度"))) {
                 Object value = field.getValue();
                 if (value != null) {
                     return value.toString();
@@ -612,6 +552,49 @@ public class PhabricatorPlatform extends AbstractPlatform {
             }
         }
         return null;
+    }
+
+    private String getEnvFromRequest(PlatformIssuesUpdateRequest request) {
+        List<PlatformCustomFieldItemDTO> customFields = request.getCustomFieldList();
+        if (customFields != null) {
+            for (PlatformCustomFieldItemDTO field : customFields) {
+                String fieldName = field.getName();
+                if (fieldName != null && (fieldName.toLowerCase().contains("environment") || fieldName.contains("发现环境"))) {
+                    Object envValue = field.getValue();
+                    return envValue != null ? envValue.toString() : null;
+                }
+            }
+        }
+        return null;
+    }
+
+    private List<Map<String, Object>> buildCommonTransactions(PlatformIssuesUpdateRequest request, PhabricatorProjectConfig projectConfig) {
+        List<Map<String, Object>> transactions = new ArrayList<>();
+
+        if (StringUtils.isNotBlank(request.getTitle())) {
+            transactions.add(Map.of("type", "title", "value", request.getTitle()));
+        }
+
+        if (StringUtils.isNotBlank(request.getDescription())) {
+            String remarkup = processInlineImages(request.getDescription());
+            LogUtil.info("[Phabricator] Converted remarkup: " + remarkup.substring(0, Math.min(500, remarkup.length())));
+            transactions.add(Map.of("type", "description", "value", remarkup));
+        }
+
+        String severity = getSeverityFromRequest(request);
+        String priority = phabricatorClient.mapSeverityToPriority(severity);
+        transactions.add(Map.of("type", "priority", "value", priority));
+
+        if (StringUtils.isNotBlank(projectConfig.getProjectPHID())) {
+            transactions.add(Map.of("type", "projects.add", "value", List.of(projectConfig.getProjectPHID())));
+        }
+
+        String envValue = getEnvFromRequest(request);
+        if (envValue != null) {
+            transactions.add(Map.of("type", "custom.igus.env", "value", envValue));
+        }
+
+        return transactions;
     }
 
     /**

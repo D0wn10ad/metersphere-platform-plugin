@@ -28,6 +28,9 @@ mvn clean package
 - **SDK modules**: Java 11
 - **Plugin modules**: Java 17
 
+### Language
+All conversation must be in English. If the model responds in any other language, the user will correct it.
+
 ### Key Conventions
 - Package: `io.metersphere.platform.*`
 - Error handling: `MSPluginException.throwException()`
