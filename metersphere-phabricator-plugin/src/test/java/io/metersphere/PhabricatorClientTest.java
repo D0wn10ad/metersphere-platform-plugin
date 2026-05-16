@@ -609,6 +609,77 @@ class PhabricatorClientTest {
     }
 
     @Nested
+    @DisplayName("prettyPrintJson")
+    class PrettyPrintJsonTests {
+
+        @Test
+        @DisplayName("Null input returns null")
+        void testNullInput() {
+            PhabricatorClient client = new PhabricatorClient();
+            assertNull(client.prettyPrintJson(null));
+        }
+
+        @Test
+        @DisplayName("Blank input returns blank")
+        void testBlankInput() {
+            PhabricatorClient client = new PhabricatorClient();
+            assertEquals("", client.prettyPrintJson(""));
+            assertTrue(client.prettyPrintJson("   ").isBlank());
+        }
+
+        @Test
+        @DisplayName("Simple object formats correctly")
+        void testSimpleObject() {
+            PhabricatorClient client = new PhabricatorClient();
+            String result = client.prettyPrintJson("{\"a\":\"b\"}");
+            assertNotNull(result);
+            assertTrue(result.contains("\"a\": \"b\""));
+        }
+
+        @Test
+        @DisplayName("Nested object formats with indentation")
+        void testNestedObject() {
+            PhabricatorClient client = new PhabricatorClient();
+            String result = client.prettyPrintJson("{\"a\":{\"b\":\"c\"}}");
+            assertNotNull(result);
+            assertTrue(result.contains("\"a\""));
+            assertTrue(result.contains("\"b\": \"c\""));
+        }
+
+        @Test
+        @DisplayName("Array formats correctly")
+        void testArray() {
+            PhabricatorClient client = new PhabricatorClient();
+            String result = client.prettyPrintJson("[1,2,3]");
+            assertNotNull(result);
+            assertTrue(result.contains("1"));
+            assertTrue(result.contains("2"));
+            assertTrue(result.contains("3"));
+        }
+
+        @Test
+        @DisplayName("Mixed object with array formats correctly")
+        void testMixedObject() {
+            PhabricatorClient client = new PhabricatorClient();
+            String result = client.prettyPrintJson("{\"a\":[1,2],\"b\":{\"c\":\"d\"}}");
+            assertNotNull(result);
+            assertTrue(result.contains("\"a\""));
+            assertTrue(result.contains("\"b\""));
+            assertTrue(result.contains("\"c\": \"d\""));
+        }
+
+        @Test
+        @DisplayName("String with colon inside value is handled correctly")
+        void testStringWithColon() {
+            PhabricatorClient client = new PhabricatorClient();
+            String result = client.prettyPrintJson("{\"url\":\"https://example.com:8080/path\"}");
+            assertNotNull(result);
+            assertTrue(result.contains("\"url\""));
+            assertTrue(result.contains("https://example.com:8080/path"));
+        }
+    }
+
+    @Nested
     @DisplayName("getTaskIdByPHID edge cases")
     class GetTaskIdByPHIDEdgeTests {
 

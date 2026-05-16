@@ -823,6 +823,8 @@ class PhabricatorPlatformTest {
             PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
             updateRequest.setPlatformId("123");
             updateRequest.setTitle("Updated Bug");
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
             var result = platform.updateIssue(updateRequest);
             
             assertNotNull(result);
@@ -853,6 +855,8 @@ class PhabricatorPlatformTest {
             updateRequest.setPlatformId("456");
             updateRequest.setTitle("Updated Title");
             updateRequest.setDescription("Updated description");
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
             var result = platform.updateIssue(updateRequest);
             
             assertNotNull(result);
@@ -881,6 +885,8 @@ class PhabricatorPlatformTest {
             PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
             updateRequest.setPlatformId("789");
             updateRequest.setPlatformStatus("resolved");
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
             var result = platform.updateIssue(updateRequest);
             
             assertNotNull(result);
@@ -908,6 +914,8 @@ class PhabricatorPlatformTest {
             
             PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
             updateRequest.setPlatformId("T123");
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
             var result = platform.updateIssue(updateRequest);
             
             assertNotNull(result);
@@ -936,6 +944,8 @@ class PhabricatorPlatformTest {
             
             PlatformIssuesUpdateRequest updateRequest = new PlatformIssuesUpdateRequest();
             updateRequest.setPlatformId("FEAT");
+            updateRequest.setProjectConfig(JSON.toJSONString(projectConfig));
+            when(mockClient.mapSeverityToPriority(any())).thenReturn("normal");
             var result = platform.updateIssue(updateRequest);
             
             assertNotNull(result);
@@ -985,6 +995,83 @@ class PhabricatorPlatformTest {
             
             assertDoesNotThrow(() -> platform.deleteIssue("T123"));
             verify(mockClient).editTask(eq("123"), anyList());
+        }
+
+        @Test
+        @DisplayName("Should handle editTask failure in deleteIssue")
+        void testDeleteIssueEditTaskFailure() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+
+            when(mockClient.getTask(anyString())).thenThrow(new RuntimeException("API error"));
+            when(mockClient.editTask(anyString(), anyList())).thenThrow(new RuntimeException("Edit failed"));
+
+            assertThrows(Exception.class, () -> platform.deleteIssue("123"));
+        }
+
+        @Test
+        @DisplayName("Should use default subtype when fields is not a Map")
+        void testDeleteIssueNonMapFields() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+
+            when(mockClient.getTask(anyString())).thenReturn(Map.of("fields", "not-a-map"));
+            when(mockClient.editTask(anyString(), anyList())).thenReturn(Map.of("result", "ok"));
+
+            assertDoesNotThrow(() -> platform.deleteIssue("456"));
+            verify(mockClient).editTask(eq("456"), anyList());
+        }
+
+        @Test
+        @DisplayName("Should use default subtype when subtype is not a Map")
+        void testDeleteIssueNonMapSubtype() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+
+            when(mockClient.getTask(anyString())).thenReturn(Map.of("fields", Map.of("subtype", "string-value")));
+            when(mockClient.editTask(anyString(), anyList())).thenReturn(Map.of("result", "ok"));
+
+            assertDoesNotThrow(() -> platform.deleteIssue("789"));
+        }
+
+        @Test
+        @DisplayName("Should use default subtype when getTask returns null")
+        void testDeleteIssueNullTask() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+
+            when(mockClient.getTask(anyString())).thenReturn(null);
+            when(mockClient.editTask(anyString(), anyList())).thenReturn(Map.of("result", "ok"));
+
+            assertDoesNotThrow(() -> platform.deleteIssue("101"));
+        }
+
+        @Test
+        @DisplayName("Should handle getTask exception preserving subtype")
+        void testDeleteIssueGetTaskException() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+
+            when(mockClient.getTask(anyString())).thenThrow(new RuntimeException("API error"));
+            when(mockClient.editTask(anyString(), anyList())).thenReturn(Map.of("result", "ok"));
+
+            assertDoesNotThrow(() -> platform.deleteIssue("111"));
+            verify(mockClient).editTask(eq("111"), anyList());
         }
     }
 
@@ -1152,6 +1239,36 @@ class PhabricatorPlatformTest {
             when(mockClient.processRemarkup(anyString(), anyString())).thenReturn("processed");
             
             String result = platform.processInlineImages("Image ![[/resource/md/get?fileName=test.png|Test.png]]");
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should skip URL with = but not MS resource")
+        void testUrlWithEqualsNotMsResource() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+
+            when(mockClient.processRemarkup(anyString(), anyString())).thenReturn("processed");
+
+            String result = platform.processInlineImages("![img](https://example.com/=test.png)");
+            assertNotNull(result);
+        }
+
+        @Test
+        @DisplayName("Should continue when image file not found on disk")
+        void testImageFileNotFound() throws Exception {
+            PlatformRequest request = createRequest();
+            PhabricatorPlatform platform = new PhabricatorPlatform(request);
+
+            PhabricatorClient mockClient = mock(PhabricatorClient.class);
+            setClient(platform, mockClient);
+
+            when(mockClient.processRemarkup(anyString(), anyString())).thenReturn("processed");
+
+            String result = platform.processInlineImages("![test.png](/resource/md/get?fileName=test.png)");
             assertNotNull(result);
         }
     }

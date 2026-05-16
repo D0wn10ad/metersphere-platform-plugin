@@ -71,6 +71,28 @@ class PhabricatorClientMockedTest {
             
             assertThrows(Exception.class, () -> client.callConduit("test.method", Map.of()));
         }
+
+        @Test
+        @DisplayName("Should attempt all retries for non-retryable HTTP error")
+        void testNoRetryOnNonRetryable() throws Exception {
+            when(mockHttpClient.executePost(anyString(), anyString()))
+                .thenThrow(new RuntimeException("HTTP error 500 from server"));
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            assertThrows(Exception.class, () -> client.callConduit("test.method", Map.of()));
+            verify(mockHttpClient, times(4)).executePost(anyString(), anyString());
+        }
+
+        @Test
+        @DisplayName("Should retry on retryable error then fail")
+        void testRetryOnRetryableError() throws Exception {
+            when(mockHttpClient.executePost(anyString(), anyString()))
+                .thenThrow(new RuntimeException("Connection refused"));
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            assertThrows(Exception.class, () -> client.callConduit("test.method", Map.of()));
+            verify(mockHttpClient, times(4)).executePost(anyString(), anyString());
+        }
     }
 
     @Nested
@@ -100,6 +122,98 @@ class PhabricatorClientMockedTest {
             List<Map<String, Object>> results = client.searchTasks(Map.of());
 
             assertNotNull(results);
+        }
+    }
+
+    @Nested
+    @DisplayName("searchWithPagination multi-page")
+    class SearchWithPaginationTests {
+
+        @Test
+        @DisplayName("Should paginate through multiple pages")
+        void testMultiPageSearch() throws Exception {
+            String page1 = "{\"result\":{\"data\":[{\"id\":1},{\"id\":2}],\"cursor\":{\"after\":\"page2\"}}}";
+            String page2 = "{\"result\":{\"data\":[{\"id\":3}],\"cursor\":{\"after\":null}}}";
+            when(mockHttpClient.executePost(anyString(), anyString()))
+                .thenReturn(page1)
+                .thenReturn(page2);
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            List<Map<String, Object>> results = client.searchTasks(Map.of());
+
+            assertNotNull(results);
+            assertEquals(3, results.size());
+        }
+
+        @Test
+        @DisplayName("Should handle null result data gracefully")
+        void testNullResultData() throws Exception {
+            String response = "{\"result\":{\"data\":null,\"cursor\":{\"after\":null}}}";
+            when(mockHttpClient.executePost(anyString(), anyString())).thenReturn(response);
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            List<Map<String, Object>> results = client.searchTasks(Map.of());
+
+            assertNotNull(results);
+            assertTrue(results.isEmpty());
+        }
+
+        @Test
+        @DisplayName("Should handle non-List data gracefully")
+        void testNonListData() throws Exception {
+            String response = "{\"result\":{\"data\":\"not-a-list\",\"cursor\":{\"after\":null}}}";
+            when(mockHttpClient.executePost(anyString(), anyString())).thenReturn(response);
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            List<Map<String, Object>> results = client.searchTasks(Map.of());
+
+            assertNotNull(results);
+            assertTrue(results.isEmpty());
+        }
+    }
+
+    @Nested
+    @DisplayName("debug mode")
+    class DebugModeTests {
+
+        @Test
+        @DisplayName("Should not throw when debug mode is enabled")
+        void testDebugModeDoesNotThrow() throws Exception {
+            config.setDebugMode(true);
+            when(mockHttpClient.executePost(anyString(), anyString()))
+                .thenReturn("{\"result\":\"ok\"}");
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            assertDoesNotThrow(() -> client.callConduit("test.method", Map.of()));
+        }
+
+        @Test
+        @DisplayName("Should not throw when debug mode is enabled with token")
+        void testDebugModeWithToken() throws Exception {
+            config.setDebugMode(true);
+            when(mockHttpClient.executePost(anyString(), anyString()))
+                .thenReturn("{\"result\":\"ok\"}");
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            Map<String, Object> params = new HashMap<>();
+            params.put("token", "secret-token-value");
+            assertDoesNotThrow(() -> client.callConduit("test.method", params));
+        }
+
+        @Test
+        @DisplayName("Should not throw when debug mode is enabled with long response")
+        void testDebugModeWithLongResponse() throws Exception {
+            config.setDebugMode(true);
+            StringBuilder longJson = new StringBuilder("{\"result\":\"");
+            for (int i = 0; i < 500; i++) {
+                longJson.append("data");
+            }
+            longJson.append("\"}");
+            when(mockHttpClient.executePost(anyString(), anyString()))
+                .thenReturn(longJson.toString());
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            assertDoesNotThrow(() -> client.callConduit("test.method", Map.of()));
         }
     }
 
@@ -445,6 +559,16 @@ class PhabricatorClientMockedTest {
             client.setConfig(config);
             
             assertDoesNotThrow(() -> client.close());
+        }
+
+        @Test
+        @DisplayName("Should handle close exception gracefully")
+        void testCloseWithException() throws Exception {
+            doThrow(new RuntimeException("Close failed")).when(mockHttpClient).close();
+
+            PhabricatorClient client = new PhabricatorClient(config, mockHttpClient);
+            assertDoesNotThrow(() -> client.close());
+            verify(mockHttpClient).close();
         }
     }
 
