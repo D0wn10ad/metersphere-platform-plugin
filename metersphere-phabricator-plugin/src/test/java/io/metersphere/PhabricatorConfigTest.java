@@ -20,6 +20,7 @@ class PhabricatorConfigTest {
     @DisplayName("Default debugMode should be true")
     void testDefaultDebugMode() {
         assertTrue(config.isDebugMode());
+        assertEquals("true", config.getDebugMode());
     }
 
     @Test
@@ -54,11 +55,52 @@ class PhabricatorConfigTest {
     @DisplayName("Should toggle debug mode")
     void testDebugModeToggle() {
         assertTrue(config.isDebugMode());
+        assertEquals("true", config.getDebugMode());
         
-        config.setDebugMode(false);
+        config.setDebugMode("false");
+        assertFalse(config.isDebugMode());
+        assertEquals("false", config.getDebugMode());
+        
+        config.setDebugMode("true");
+        assertTrue(config.isDebugMode());
+    }
+
+    @Test
+    @DisplayName("Should default syncPriority and syncEnvironment to true")
+    void testDefaultSyncSettings() {
+        assertTrue(config.isSyncPriority());
+        assertTrue(config.isSyncEnvironment());
+        assertEquals("true", config.getSyncPriority());
+        assertEquals("true", config.getSyncEnvironment());
+    }
+
+    @Test
+    @DisplayName("Should toggle syncPriority")
+    void testSyncPriorityToggle() {
+        config.setSyncPriority("false");
+        assertFalse(config.isSyncPriority());
+        
+        config.setSyncPriority("true");
+        assertTrue(config.isSyncPriority());
+    }
+
+    @Test
+    @DisplayName("Should toggle syncEnvironment")
+    void testSyncEnvironmentToggle() {
+        config.setSyncEnvironment("false");
+        assertFalse(config.isSyncEnvironment());
+        
+        config.setSyncEnvironment("true");
+        assertTrue(config.isSyncEnvironment());
+    }
+
+    @Test
+    @DisplayName("Should handle case-insensitive string values")
+    void testCaseInsensitiveValues() {
+        config.setDebugMode("FALSE");
         assertFalse(config.isDebugMode());
         
-        config.setDebugMode(true);
+        config.setDebugMode("TRUE");
         assertTrue(config.isDebugMode());
     }
 

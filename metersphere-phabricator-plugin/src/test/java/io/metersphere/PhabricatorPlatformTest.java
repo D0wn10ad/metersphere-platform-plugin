@@ -32,7 +32,7 @@ class PhabricatorPlatformTest {
         integrationConfig = new io.metersphere.platform.domain.PhabricatorConfig();
         integrationConfig.setUrl("https://phabricator.example.com");
         integrationConfig.setApiToken("test-token");
-        integrationConfig.setDebugMode(false);
+        integrationConfig.setDebugMode("false");
 
         projectConfig = new PhabricatorProjectConfig();
         projectConfig.setProjectPHID("PHID-PROJ-123");

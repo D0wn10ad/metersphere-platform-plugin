@@ -24,12 +24,16 @@
       },
       {
         "name": "debugMode",
-        "type": "switch",
-        "defaultValue": false,
+        "type": "radio",
+        "defaultValue": "true",
         "required": false,
         "i18n": true,
         "label": "Debug Mode",
-        "tips": "启用后将在日志中打印 API 请求和响应内容"
+        "tips": "启用后将在日志中打印 API 请求和响应内容",
+        "options": [
+          {"text": "Enabled", "value": "true"},
+          {"text": "Disabled", "value": "false"}
+        ]
       },
       {
         "name": "msUrl",
@@ -40,21 +44,29 @@
       },
       {
         "name": "syncPriority",
-        "type": "switch",
-        "defaultValue": true,
+        "type": "radio",
+        "defaultValue": "true",
         "required": false,
         "i18n": true,
         "label": "Sync Priority",
-        "tips": "Sync priority from severity when creating/updating issues"
+        "tips": "Sync priority from severity when creating/updating issues",
+        "options": [
+          {"text": "Enabled", "value": "true"},
+          {"text": "Disabled", "value": "false"}
+        ]
       },
       {
         "name": "syncEnvironment",
-        "type": "switch",
-        "defaultValue": true,
+        "type": "radio",
+        "defaultValue": "true",
         "required": false,
         "i18n": true,
         "label": "Sync Environment",
-        "tips": "Sync custom.igus.env field when creating/updating issues"
+        "tips": "Sync custom.igus.env field when creating/updating issues",
+        "options": [
+          {"text": "Enabled", "value": "true"},
+          {"text": "Disabled", "value": "false"}
+        ]
       }
     ]
   },

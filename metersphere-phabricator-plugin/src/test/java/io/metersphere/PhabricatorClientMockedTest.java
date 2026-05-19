@@ -26,7 +26,7 @@ class PhabricatorClientMockedTest {
         config = new PhabricatorConfig();
         config.setUrl("https://phabricator.example.com");
         config.setApiToken("test-token");
-        config.setDebugMode(false);
+        config.setDebugMode("false");
         mockHttpClient = mock(PhabricatorHttpClient.class);
     }
 
@@ -179,7 +179,7 @@ class PhabricatorClientMockedTest {
         @Test
         @DisplayName("Should not throw when debug mode is enabled")
         void testDebugModeDoesNotThrow() throws Exception {
-            config.setDebugMode(true);
+            config.setDebugMode("true");
             when(mockHttpClient.executePost(anyString(), anyString()))
                 .thenReturn("{\"result\":\"ok\"}");
 
@@ -190,7 +190,7 @@ class PhabricatorClientMockedTest {
         @Test
         @DisplayName("Should not throw when debug mode is enabled with token")
         void testDebugModeWithToken() throws Exception {
-            config.setDebugMode(true);
+            config.setDebugMode("true");
             when(mockHttpClient.executePost(anyString(), anyString()))
                 .thenReturn("{\"result\":\"ok\"}");
 
@@ -203,7 +203,7 @@ class PhabricatorClientMockedTest {
         @Test
         @DisplayName("Should not throw when debug mode is enabled with long response")
         void testDebugModeWithLongResponse() throws Exception {
-            config.setDebugMode(true);
+            config.setDebugMode("true");
             StringBuilder longJson = new StringBuilder("{\"result\":\"");
             for (int i = 0; i < 500; i++) {
                 longJson.append("data");

@@ -21,7 +21,7 @@ class PhabricatorClientTest {
         config = new PhabricatorConfig();
         config.setUrl("https://phabricator.example.com");
         config.setApiToken("test-token");
-        config.setDebugMode(false);
+        config.setDebugMode("false");
     }
 
     @Test

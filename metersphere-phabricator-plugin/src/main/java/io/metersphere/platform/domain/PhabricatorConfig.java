@@ -7,10 +7,10 @@ public class PhabricatorConfig {
     private String url;
     private String apiToken;
     private String user;
-    private boolean debugMode = true;
+    private String debugMode = "true";
     private String msUrl;
-    private boolean syncPriority = true;
-    private boolean syncEnvironment = true;
+    private String syncPriority = "true";
+    private String syncEnvironment = "true";
 
     public String getUrl() {
         return url;
@@ -37,10 +37,14 @@ public class PhabricatorConfig {
     }
 
     public boolean isDebugMode() {
+        return "true".equalsIgnoreCase(debugMode);
+    }
+
+    public String getDebugMode() {
         return debugMode;
     }
 
-    public void setDebugMode(boolean debugMode) {
+    public void setDebugMode(String debugMode) {
         this.debugMode = debugMode;
     }
 
@@ -53,18 +57,26 @@ public class PhabricatorConfig {
     }
 
     public boolean isSyncPriority() {
+        return "true".equalsIgnoreCase(syncPriority);
+    }
+
+    public String getSyncPriority() {
         return syncPriority;
     }
 
-    public void setSyncPriority(boolean syncPriority) {
+    public void setSyncPriority(String syncPriority) {
         this.syncPriority = syncPriority;
     }
 
     public boolean isSyncEnvironment() {
+        return "true".equalsIgnoreCase(syncEnvironment);
+    }
+
+    public String getSyncEnvironment() {
         return syncEnvironment;
     }
 
-    public void setSyncEnvironment(boolean syncEnvironment) {
+    public void setSyncEnvironment(String syncEnvironment) {
         this.syncEnvironment = syncEnvironment;
     }
 }
