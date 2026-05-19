@@ -455,7 +455,7 @@ public class PhabricatorClient {
     public String mapSeverityToPriority(String msSeverity) {
         if (msSeverity == null) return "normal";
         String upper = msSeverity.toUpperCase();
-        if (upper.startsWith("P0") || upper.contains("CRITICAL")) return "triage";
+        if (upper.startsWith("P0") || upper.contains("CRITICAL")) return "unbreak";
         if (upper.startsWith("P1") || upper.contains("HIGH")) return "high";
         if (upper.startsWith("P2") || upper.contains("MEDIUM")) return "normal";
         if (upper.startsWith("P3") || upper.contains("LOW")) return "low";

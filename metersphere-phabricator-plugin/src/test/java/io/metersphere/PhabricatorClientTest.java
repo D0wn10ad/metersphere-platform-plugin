@@ -58,11 +58,10 @@ class PhabricatorClientTest {
     class MapSeverityToPriorityTests {
 
         @Test
-        @DisplayName("P0 should map to triage")
-        void testP0MapsToTriage() {
-            PhabricatorClient client = new PhabricatorClient();
-            assertEquals("triage", client.mapSeverityToPriority("P0"));
-            assertEquals("triage", client.mapSeverityToPriority("p0"));
+        @DisplayName("P0 should map to unbreak")
+        void testP0Priority() {
+            assertEquals("unbreak", new PhabricatorClient().mapSeverityToPriority("P0"));
+            assertEquals("unbreak", new PhabricatorClient().mapSeverityToPriority("p0"));
         }
 
         @Test
@@ -90,12 +89,11 @@ class PhabricatorClientTest {
         }
 
         @Test
-        @DisplayName("Critical should map to triage")
-        void testCriticalMapsToTriage() {
-            PhabricatorClient client = new PhabricatorClient();
-            assertEquals("triage", client.mapSeverityToPriority("Critical"));
-            assertEquals("triage", client.mapSeverityToPriority("CRITICAL"));
-            assertEquals("triage", client.mapSeverityToPriority("critical"));
+        @DisplayName("Critical should map to unbreak")
+        void testCriticalPriority() {
+            assertEquals("unbreak", new PhabricatorClient().mapSeverityToPriority("Critical"));
+            assertEquals("unbreak", new PhabricatorClient().mapSeverityToPriority("CRITICAL"));
+            assertEquals("unbreak", new PhabricatorClient().mapSeverityToPriority("critical"));
         }
 
         @Test
