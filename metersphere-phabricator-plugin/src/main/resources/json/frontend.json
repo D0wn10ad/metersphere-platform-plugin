@@ -37,6 +37,24 @@
         "required": false,
         "label": "Metersphere URL",
         "placeholder": "https://metersphere.example.com"
+      },
+      {
+        "name": "syncPriority",
+        "type": "switch",
+        "defaultValue": true,
+        "required": false,
+        "i18n": true,
+        "label": "Sync Priority",
+        "tips": "Sync priority from severity when creating/updating issues"
+      },
+      {
+        "name": "syncEnvironment",
+        "type": "switch",
+        "defaultValue": true,
+        "required": false,
+        "i18n": true,
+        "label": "Sync Environment",
+        "tips": "Sync custom.igus.env field when creating/updating issues"
       }
     ]
   },

@@ -116,11 +116,13 @@ public class PhabricatorPlatform extends AbstractPlatform {
             LogUtil.info("[Phabricator DEBUG] getProjectConfig(): " + JSON.toJSONString(projectConfig));
             LogUtil.info("[Phabricator DEBUG] getCustomFieldList(): " + phabricatorClient.prettyPrintJson(JSON.toJSONString(request.getCustomFieldList())));
         }
-        List<Map<String, Object>> transactions = buildCommonTransactions(request, projectConfig);
+        List<Map<String, Object>> transactions = buildCommonTransactions(request, projectConfig, integrationConfig);
         
         // Set env to empty string on creation; actual value updated in follow-up
-        transactions.removeIf(t -> "custom.igus.env".equals(t.get("type")));
-        transactions.add(Map.of("type", "custom.igus.env", "value", ""));
+        if (integrationConfig.isSyncEnvironment()) {
+            transactions.removeIf(t -> "custom.igus.env".equals(t.get("type")));
+            transactions.add(Map.of("type", "custom.igus.env", "value", ""));
+        }
         
         // Subtype
         String subtype = projectConfig.getDefaultSubtype();
@@ -172,15 +174,17 @@ public class PhabricatorPlatform extends AbstractPlatform {
                                 }
                                 
                                 // Update env with actual value from custom fields
-                                try {
-                                    String envValue = getEnvFromRequest(request);
-                                    if (StringUtils.isNotBlank(envValue)) {
-                                        List<Map<String, Object>> envTransactions = new ArrayList<>();
-                                        envTransactions.add(Map.of("type", "custom.igus.env", "value", envValue));
-                                        phabricatorClient.editTask(id, envTransactions);
+                                if (integrationConfig.isSyncEnvironment()) {
+                                    try {
+                                        String envValue = getEnvFromRequest(request);
+                                        if (StringUtils.isNotBlank(envValue)) {
+                                            List<Map<String, Object>> envTransactions = new ArrayList<>();
+                                            envTransactions.add(Map.of("type", "custom.igus.env", "value", envValue));
+                                            phabricatorClient.editTask(id, envTransactions);
+                                        }
+                                    } catch (Exception e) {
+                                        LogUtil.warn("Failed to update env: " + e.getMessage());
                                     }
-                                } catch (Exception e) {
-                                    LogUtil.warn("Failed to update env: " + e.getMessage());
                                 }
                             }
                         }
@@ -208,8 +212,9 @@ public class PhabricatorPlatform extends AbstractPlatform {
         }
         
         PhabricatorProjectConfig projectConfig = getProjectConfig(request.getProjectConfig());
+        PhabricatorConfig integrationConfig = getIntegrationConfig();
         
-        List<Map<String, Object>> transactions = buildCommonTransactions(request, projectConfig);
+        List<Map<String, Object>> transactions = buildCommonTransactions(request, projectConfig, integrationConfig);
         
         // Status
         if (StringUtils.isNotBlank(request.getPlatformStatus())) {
@@ -568,7 +573,7 @@ public class PhabricatorPlatform extends AbstractPlatform {
         return null;
     }
 
-    private List<Map<String, Object>> buildCommonTransactions(PlatformIssuesUpdateRequest request, PhabricatorProjectConfig projectConfig) {
+    private List<Map<String, Object>> buildCommonTransactions(PlatformIssuesUpdateRequest request, PhabricatorProjectConfig projectConfig, PhabricatorConfig integrationConfig) {
         List<Map<String, Object>> transactions = new ArrayList<>();
 
         if (StringUtils.isNotBlank(request.getTitle())) {
@@ -581,17 +586,21 @@ public class PhabricatorPlatform extends AbstractPlatform {
             transactions.add(Map.of("type", "description", "value", remarkup));
         }
 
-        String severity = getSeverityFromRequest(request);
-        String priority = phabricatorClient.mapSeverityToPriority(severity);
-        transactions.add(Map.of("type", "priority", "value", priority));
+        if (integrationConfig.isSyncPriority()) {
+            String severity = getSeverityFromRequest(request);
+            String priority = phabricatorClient.mapSeverityToPriority(severity);
+            transactions.add(Map.of("type", "priority", "value", priority));
+        }
 
         if (StringUtils.isNotBlank(projectConfig.getProjectPHID())) {
             transactions.add(Map.of("type", "projects.add", "value", List.of(projectConfig.getProjectPHID())));
         }
 
-        String envValue = getEnvFromRequest(request);
-        if (envValue != null) {
-            transactions.add(Map.of("type", "custom.igus.env", "value", envValue));
+        if (integrationConfig.isSyncEnvironment()) {
+            String envValue = getEnvFromRequest(request);
+            if (envValue != null) {
+                transactions.add(Map.of("type", "custom.igus.env", "value", envValue));
+            }
         }
 
         return transactions;

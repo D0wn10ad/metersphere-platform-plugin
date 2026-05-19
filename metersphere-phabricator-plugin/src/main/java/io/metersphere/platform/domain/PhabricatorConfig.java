@@ -9,6 +9,8 @@ public class PhabricatorConfig {
     private String user;
     private boolean debugMode = true;
     private String msUrl;
+    private boolean syncPriority = true;
+    private boolean syncEnvironment = true;
 
     public String getUrl() {
         return url;
@@ -48,5 +50,21 @@ public class PhabricatorConfig {
 
     public void setMsUrl(String msUrl) {
         this.msUrl = msUrl;
+    }
+
+    public boolean isSyncPriority() {
+        return syncPriority;
+    }
+
+    public void setSyncPriority(boolean syncPriority) {
+        this.syncPriority = syncPriority;
+    }
+
+    public boolean isSyncEnvironment() {
+        return syncEnvironment;
+    }
+
+    public void setSyncEnvironment(boolean syncEnvironment) {
+        this.syncEnvironment = syncEnvironment;
     }
 }
